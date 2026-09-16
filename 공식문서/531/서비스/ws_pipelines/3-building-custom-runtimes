@@ -1,0 +1,341 @@
+
+
+https://www.ibm.com/docs/en/software-hub/5.3.x?topic=administering-building-custom-runtime-images
+
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+            Developer tool services
+                Anaconda Repository for IBM Cloud Pak for Data
+                RStudio Server Runtimes
+                Watson Studio Runtimes
+                    Installing
+                    Upgrading
+                    Getting started
+                    Administering
+                        Administering Runtime 24.1 on Python 3.11 for GPU
+                        Disabling or changing CPU, GPU and RStudio idle timeout
+                        Building custom runtime images
+                        Customizing channels and repositories for conda and mamba
+                        Customizing pip settings
+                        Updating and deleting custom runtime definitions
+                    Uninstalling
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Building custom runtime images
+Last Updated: 2026-05-07
+
+Build custom runtime images to optimize the standard software configuration of a runtime for your application needs. For example, if you work in an air-gapped environment which forbids exposing any operations to the Internet, you might want to create your own, custom runtime image.
+
+The standard runtime images that are available in Watson Studio contain pre-selected open-source libraries, as well as selected IBM libraries. You can build custom runtime images that are based on Jupyter notebooks images, JupyterLab images, and RStudio images.
+You can also build:
+
+    Custom images based on SPSS Modeler runtime images, to install custom ODBC drivers.
+    Custom images for DataStage to perform root installations of third-party libraries.
+
+To create a custom image, download the image of the runtime that you want to customize, build a new custom image by adding libraries to the image that you downloaded, register the new image, and finally update the environment template that you created in your project to use the new custom image.
+Important considerations
+If you use custom runtime images, you must consider the following aspects:
+
+    Custom runtime images for notebooks can't be built for Spark environments.
+    Custom runtime images can't be used in a deployment. You need to create a separate image for Watson Machine Learning.
+    It is your responsibility to ensure that all updates that are made to the available runtime images in Watson Studio, including all security updates, are also made to your custom images. Watch out for new fix packs or any related information. When new versions of IBM® Software Hub are released, we strongly encourage you to rebuild all of your custom images.
+    Custom images can only be used in the notebook editor, JupyterLab, and RStudio. You can't use custom images based on Watson Studio Jupyter runtimes in Watson Machine Learning or in Data Refinery.
+
+Creating and registering a custom image
+Important: You must carry out the following steps on all existing custom images each time you upgrade IBM Software Hub to rebase the image with the latest IBM Software Hub runtime image, which includes all of the latest fixes, including security fixes.
+To create and register a custom image:
+
+    Get the registry URL to use for Docker commands and in scripts. The Watson Studio runtime images are stored in a Docker image registry. In IBM Software Hub, you can only use an external registry outside of the IBM Software Hub OpenShift® cluster. To use that registry, you need the URL to the external registry that was used during the installation of IBM Software Hub. You use the same URL for all commands and in all scripts that you run.
+    Downloading the configuration file for the runtime image that you want to customize. See Downloading the runtime definition.
+    Downloading the image in the configuration. See Downloading the runtime image.
+    Add customizations and build a new image. See Creating a custom image.
+    Push the image to the container server. See Pushing the image to the registry.
+    Change and upload the configuration file. See Uploading the custom configuration.
+
+Note: If you created a custom image for JupyterLab, users will only be able to select the custom image in projects with Git integration. If you created a custom image for Jupyter notebooks, users can select it in all projects, with and without Git integration.
+
+    Downloading the runtime definition
+    Every custom image that you create must be based on one of the standard images that are included in Watson Studio. You can get the name of the image that is used by a runtime from its runtime definition. A runtime definition contains an entry for the registry where the image is stored.
+    Downloading the runtime image
+    Locate the name of the runtime image in the runtime definition file and then download it.
+    Creating a custom image
+    Build a new custom image by adding your customizations to the standard image that you downloaded. You can build a custom image on any server or workstation that runs Docker, Podman or Skopeo. The custom image does not have to be created on Red Hat® Enterprise Linux®.
+    Pushing the image to the registry
+    After you have add your libraries to the Dockerfile and create the image, you must push the image to the registry.
+    Uploading the custom configuration
+    After you register your custom image, you must modify the JSON configuration file that you downloaded and then upload it to the IBM Software Hub cluster under a new name.
+
+Parent topic:
+Administering Watson Studio Runtimes
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+            Developer tool services
+                Anaconda Repository for IBM Cloud Pak for Data
+                RStudio Server Runtimes
+                Watson Studio Runtimes
+                    Installing
+                    Upgrading
+                    Getting started
+                    Administering
+                        Administering Runtime 24.1 on Python 3.11 for GPU
+                        Disabling or changing CPU, GPU and RStudio idle timeout
+                        Building custom runtime images
+                            Downloading the runtime definition
+                            Downloading the runtime image
+                            Creating a custom image
+                            Pushing the image to the registry
+                            Uploading the custom configuration
+                        Customizing channels and repositories for conda and mamba
+                        Customizing pip settings
+                        Updating and deleting custom runtime definitions
+                    Uninstalling
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Downloading the runtime definition
+Last Updated: 2026-05-07
+
+Every custom image that you create must be based on one of the standard images that are included in Watson Studio. You can get the name of the image that is used by a runtime from its runtime definition. A runtime definition contains an entry for the registry where the image is stored.
+Runtime definitions for Jupyter notebook images
+Table 1. Runtime definitions for standard Jupyter notebook images that are included in Watson Studio
+Runtime definition name
+	
+Image description
+jupyter-241l-py	JupyterLab with Python 3.11
+jupyter-241n-py	Jupyter Notebook with Python 3.11
+jupyter-241l-pygpu	JupyterLab with Python 3.11 with GPU support
+jupyter-241n-pygpu	Jupyter Notebook with Python 3.11 with GPU support
+jupyter-241n-r	Jupyter Notebook with R 4.3
+Runtime definitions for RStudio images
+Table 2. Runtime definitions for the RStudio images that are included in Watson Studio
+Runtime definition name
+	
+Image description
+rstudio-241	RStudio with Runtime 24.1 on R 4.3
+Runtime definitions for SPSS Modeler images
+
+For SPSS Modeler, use the spss-modeler runtime definition.
+Downloading the runtime definition file
+Follow these steps to get the runtime definition by using the API and store it as a json file:
+
+    Get an authorization token. See Generating an API authorization token.
+    List the names of all available runtime definitions on the cluster.
+
+    curl -k  -X GET -H "Authorization: ZenApiKey ${TOKEN}" "${CPD_URL}/v2/runtime_definitions" | jq -r ".resources[].entity.name"
+
+    Note: Add the -k flag to cURL commands if you get a message about certificate issues. The -k flag disables certificate validation. You might not have to do this.
+    Download the runtime definition.
+    Important:
+        Replace <runtime-definition-name> with the name of the runtime definition that you need for your customization.
+        You must append ?include=launch_configuration to the URL. Without that parameter the result will be incomplete.
+        The customization uses only the value of the entity key.
+
+    myRuntimeDefinition=<runtime-definition-name>; curl -ksS -X GET -H "Authorization: ZenApiKey ${TOKEN}" "${CPD_URL}/v2/runtime_definitions?include=launch_configuration" | jq '.resources[] | select(.entity.name=="'${myRuntimeDefinition}'") | .entity'  > ${myRuntimeDefinition}-server.json
+
+Parent topic:
+Building custom runtime images
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+            Developer tool services
+                Anaconda Repository for IBM Cloud Pak for Data
+                RStudio Server Runtimes
+                Watson Studio Runtimes
+                    Installing
+                    Upgrading
+                    Getting started
+                    Administering
+                        Administering Runtime 24.1 on Python 3.11 for GPU
+                        Disabling or changing CPU, GPU and RStudio idle timeout
+                        Building custom runtime images
+                            Downloading the runtime definition
+                            Downloading the runtime image
+                            Creating a custom image
+                            Pushing the image to the registry
+                            Uploading the custom configuration
+                        Customizing channels and repositories for conda and mamba
+                        Customizing pip settings
+                        Updating and deleting custom runtime definitions
+                    Uninstalling
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Downloading the runtime image
+Last Updated: 2026-05-07
+
+Locate the name of the runtime image in the runtime definition file and then download it.
+
+Follow these steps to download the runtime image:
+
+    Get the name of the image by searching for "image" in the configuration file.
+        Example in the jupyter-222n-py-server.json configuration file:
+
+        [...]
+        "replicas": 1,
+        "image": "cp.icr.io/cp/cpd/wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc", "command": \["/usr/sbin/tini", "--", "/opt/ibm/ws/bin/setup_container.sh"],
+        [...]
+
+        In this case, wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc is the image that you must download.
+        Example in the rstudio-r42-server.json configuration file:
+
+        [...]
+        "replicas": 1,
+        "image": "cp.icr.io/cp/cpd/wslocal-runtime-rstudio-r42@sha256:de79fcbbd21b62d6d5edb4b392b554777c445d9a5d9aee9a4eb26153f788e0a2", "privileged": false,
+        "command": ["/scripts/icp4d/startup.sh"],
+        [...]
+
+        In this case, wslocal-runtime-rstudio-r42@sha256:de79fcbbd21b62d6d5edb4b392b554777c445d9a5d9aee9a4eb26153f788e0a2 is the image that you must download.
+    Get the URL to the Docker registry where the image is located. Use the registry URL which was used during the installation of IBM® Software Hub to pull the image, for example the wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc image:
+        If you are using a private registry, get the location of the private container registry, which is stored in the PRIVATE_REGISTRY_LOCATION variable. If your cluster is connected to the Internet, you can pull the image directly from the IBM entitled registry, cp.icr.io/cp/cpd, by using the IBM_ENTITLEMENT_KEY variable. For details, see Setting up installation environment variables. The value in these variables is the URL to the external image registry.
+        Use that value to modify the <image-registry-url>/<namespace> part of the URL to the image:
+
+        <image-registry-url>/<namespace>/wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc
+
+
+        Important: The name of the image that you pull, update (using the Dockerfile), upload (using a new custom image name) and add to the renamed runtime definition file must have the following format: registry/<namespace>/actual_image_name.
+    Download the image. To download, you can use a command line utility like Docker, Podman or Skopeo, which must be installed on your server or workstation. You must have a valid IBM Software Hub user name and password and administrator rights to log in to the registry to download the image. Use the URL that you located in the previous step for <image-registry-url> in the following commands.
+    For Docker or Podman:
+        Log in to the utility. The following code snippet shows using Docker. The login syntax for Podman, other than command name, is the same:
+
+        docker login -u cp -p ${IBM_ENTITLEMENT_KEY} cp.icr.io
+
+
+        Download the image, for example, the wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc image from the environment template JSON file jupyter-222n-py-server.json. The code snippet shows using Docker. The Podman command syntax is the same.
+
+        docker pull <image-registry-url>/<namespace>/wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc
+
+
+    For Skopeo:
+
+    Skopeo does not need a separate login command. If you use Skopeo, you can download the image directly from the registry. However, the download destination of the image is different depending on whether you use Docker or Podman with Buildah to build the custom package.
+    Download the image to enable a Docker build:
+
+    skopeo copy –src-creds <username>:<password> docker://<image-registry-url>/<namespace>/wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc
+    docker-daemon:wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc
+
+    Or a Podman/Buildah build:
+
+    skopeo copy –src-creds <username>:<password> docker://<image-registry-url>/<namespace>/wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc containers-storage:wslocal-runtime-py310main@sha256:491c86cb5604a1fe0816a5a7a59a52acf14bdf8eae11d136d4a018dc030d8bbc
+
+Parent topic:
+Building custom runtime images
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+

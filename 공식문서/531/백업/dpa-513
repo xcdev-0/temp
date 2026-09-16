@@ -1,0 +1,55 @@
+cat << EOF | oc apply -f -
+apiVersion: oadp.openshift.io/v1alpha1
+kind: DataProtectionApplication
+metadata:
+  name: dpa-sample
+spec:
+  configuration:
+    velero:
+      customPlugins:
+      - image: ${CPDBR_VELERO_PLUGIN_IMAGE_LOCATION}
+        name: cpdbr-velero-plugin
+      defaultPlugins:
+      - aws
+      - openshift
+      - csi
+      podConfig:
+        resourceAllocations:
+          limits:
+            cpu: "${VELERO_POD_CPU_LIMIT}"
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+    nodeAgent:
+      enable: true
+      uploaderType: restic
+      timeout: 72h
+      podConfig:
+        resourceAllocations:
+          limits:
+            cpu: "${RESTIC_OR_NODE_AGENT_POD_CPU_LIMIT}"
+            memory: 32Gi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+        tolerations:
+        - key: icp4data
+          operator: Exists
+          effect: NoSchedule
+  backupImages: false
+  backupLocations:
+    - velero:
+        provider: aws
+        default: true
+        objectStorage:
+          bucket: ${BUCKET_NAME}
+          prefix: ${BUCKET_PREFIX}
+        config:
+          region: ${REGION}
+          s3ForcePathStyle: "true"
+          s3Url: ${S3_URL}
+        credential:
+          name: cloud-credentials
+          key: cloud
+EOF

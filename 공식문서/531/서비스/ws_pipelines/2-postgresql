@@ -1,0 +1,1027 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+        Administering
+            Post-installation setup (Day 1)
+                Tracking and reporting use against license terms
+                Securing your environment
+                Installing monitors
+                Setting up the platform for end users
+                Setting up a storage volume to store customizations for common core services
+                Disabling SELinux relabeling
+                Setting up the IBM Software Hub AI assistant
+                Integrating IBM Software Hub with IBM Turbonomic
+                Integrating IBM Software Hub with IBM Instana Observability
+                Collecting telemetry data
+                Forwarding alerts
+                Forwarding notifications
+                Moving cpd-cli images to a private container registry
+                Setting up services
+                    Completing the catalog-api migration
+            Ongoing maintenance (Day 2)
+            Managing users
+            Backing up and restoring IBM Software Hub
+            Administering IBM Software Hub Control Center
+            IBM Software Hub command-line interface (cpd-cli)
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Completing the catalog-api service migration
+Last Updated: 2026-08-26
+
+After you upgrade the common core services from Version 5.1 to IBM® Software Hub Version 5.3, the back-end database for the catalog-api service is migrated from CouchDB to PostgreSQL.
+
+Who needs to complete this task?
+
+    Instance administrator An instance administrator can complete this task.
+When do you need to complete this task?
+    Complete this task only if the following statements are true:
+
+        You upgraded from IBM Software Hub Version 5.1
+        You upgrade an instance that includes the common core services.
+
+    Repeat as needed If you have multiple instances of IBM Software Hub on the cluster, repeat this task for each instance that you upgraded from Version 5.1 to Version 5.3.
+
+1. Checking the migration method used
+
+If you ran an automatic migration, the common core services waits for the migration jobs to complete before upgrading the components associated with the common core services.
+
+If you ran a semi-automatic migration, the common core services runs the migration jobs while upgrading the components associated with the common core services.
+
+    Run the following command to determine which migration method was used:
+
+    oc describe ccs ccs-cr \
+    --namespace ${PROJECT_CPD_INST_OPERANDS} \
+    | grep use_semi_auto_catalog_api_migration
+
+    Take the appropriate action based on the response returned by the oc describe command:
+    Status
+    	
+    Migration type
+    	
+    What to do next
+    The command returns an empty response	Automatic	Proceed to 4. Collecting statistics about the migration
+    The command returns true	Semi-automatic	Proceed to 2. Checking the status of the migration jobs.
+
+2. Checking the status of the migration jobs
+Remember: This step is required only for semi-automatic migrations. If you completed an automatic migration, proceed to 4. Collecting statistics about the migration.
+Check the migration status periodically. The following jobs might take some time to complete depending on number of assets to be migrated:
+
+    cams-postgres-migration-job
+    jobs-postgres-upgrade-migration
+
+To check the status of the jobs:
+
+oc get job cams-postgres-migration-job jobs-postgres-upgrade-migration \
+--namespace ${PROJECT_CPD_INST_OPERANDS} \
+-o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[0].type,COMPLETIONS:.status.succeeded
+
+The command returns output with the following format:
+
+NAME                             STATUS    COMPLETIONS
+cams-postgres-migration-job      Complete   1/1       
+jobs-postgres-upgrade-migration  Complete   1/1        
+
+Take the appropriate action based on the status of the jobs:
+Status
+	
+What to do next
+The status of either job is Failed	Contact IBM Support for assistance resolving the error.
+The status of either job is InProgress	Wait several minutes before checking the status of the jobs again.
+The status of both jobs is Complete	Proceed to 3. Completing the migration.
+3. Completing the migration
+Remember: This step is required only for semi-automatic migrations. If you completed an automatic migration, proceed to 4. Collecting statistics about the migration.
+After both of the following jobs complete, you can complete the migration to PostgreSQL:
+
+    cams-postgres-migration-job
+    jobs-postgres-upgrade-migration
+
+Important: It is strongly recommended that you minimize the number of updates to the database before you complete this step. Large or numerous write operations that occur during the migration will increase the time that the migration takes.
+
+To complete the migration to PostgreSQL:
+
+    Run the following command to continue the semi-automatic migration:
+
+    oc patch ccs ccs-cr \
+    --namespace ${PROJECT_CPD_INST_OPERANDS} \
+    --type merge \
+    --patch '{"spec": {"continue_semi_auto_catalog_api_migration": true}}'
+
+    Wait for common core services custom resource to be Completed. This process takes at least 10 minutes. However, it might be significantly longer if any assets were changed during the common core services upgrade.
+
+    To check the status of the custom resource, run:
+
+    oc get ccs ccs-cr \
+    --namespace ${PROJECT_CPD_INST_OPERANDS}
+
+    The command returns output with the following format:
+
+    NAME     VERSION   RECONCILED   STATUS      PERCENT   AGE
+    ccs-cr   11.0.0    11.0.0       Completed   100%      1d
+
+    Take the appropriate action based on the status of the jobs:
+    Status
+    	
+    What to do next
+    The status of the custom resource is Failed	Contact IBM Support for assistance resolving the error.
+    The status of the custom resource is InProgress	Wait several minutes before checking the status of the custom resource again.
+    The status of the custom resource is Complete	Proceed to 4. Collecting statistics about the migration.
+
+4. Collecting statistics about the migration
+
+The migration_status.sh script provides information on the total number of databases and assets that were migrated. You might need this information if you need to debug migration issues.
+
+    Save the following script on the client workstation as a file named migration_status.sh:
+
+    #!/bin/bash
+
+    # Set postgres connection parameters
+    postgres_password=$(oc get secret -n ${PROJECT_CPD_INST_OPERANDS} ccs-cams-postgres-app -o json 2>/dev/null | jq -r '.data."password"' | base64 -d)
+    postgres_username=cams_user
+    postgres_db=camsdb
+    postgres_migrationdb=camsdb_migration
+
+    echo -e "======MIGRATION STATUS==========="
+
+    # Total migrated database(s)
+    databases=$(oc -n ${PROJECT_CPD_INST_OPERANDS} -c postgres exec ccs-cams-postgres-1 -- psql -t postgresql://$postgres_username:$postgres_password@localhost:5432/$postgres_migrationdb -c "select count(*) from migration.status where state='complete'" 2>/dev/null)
+    if [ -n "$databases" ];then
+      databases_no_space=$(echo "$databases" | tr -d ' ')
+      echo "Total catalog-api databases migrated: $databases_no_space"
+    else
+      echo "Unable to fetch migration information for databases"
+    fi
+
+    # Total migrated assets
+    assets=$(oc -n ${PROJECT_CPD_INST_OPERANDS} -c postgres exec ccs-cams-postgres-1 -- psql -t postgresql://$postgres_username:$postgres_password@localhost:5432/$postgres_db -c "select count(*) from cams.asset" 2>/dev/null)
+    if [ -n "$assets" ];then
+      assets_no_space=$(echo "$assets" | tr -d ' ')
+      echo -e "Total catalog-api assets migrated: $assets_no_space\n"
+    else
+      echo "Unable to fetch migration information for assets"
+    fi
+
+    Run the migration_status.sh script:
+
+    ./migration_status.sh
+
+    Proceed to 5. Backing up the PostgreSQL database.
+
+5. Backing up the PostgreSQL database
+
+Back up the new PostgreSQL database:
+
+    Save the following script on the client workstation as a file named backup_postgres.sh:
+
+    #!/bin/bash
+
+    # Make sure PROJECT_CPD_INST_OPERANDS is set
+    if [ -z "$PROJECT_CPD_INST_OPERANDS" ]; then
+      echo "Environment variable PROJECT_CPD_INST_OPERANDS is not defined. This environment variable must be set to the project where IBM Software Hub is running."
+      exit 1
+    fi
+
+    echo "PROJECT_CPD_INST_OPERANDS namespace is: $PROJECT_CPD_INST_OPERANDS"
+
+    # Step 1: Find the replica pod
+    REPLICA_POD=$(oc get pods -n $PROJECT_CPD_INST_OPERANDS -l app=ccs-cams-postgres -o jsonpath='{range .items[?(@.metadata.labels.role=="replica")]}{.metadata.name}{"\n"}{end}')
+
+    if [ -z "$REPLICA_POD" ]; then
+      echo "No replica pod found."
+      exit 1
+    fi
+
+    echo "Replica pod: $REPLICA_POD"
+
+    # Step 2: Extract JDBC URI from a secret
+    JDBC_URI=$(oc get secret ccs-cams-postgres-app -n $PROJECT_CPD_INST_OPERANDS -o jsonpath="{.data.uri}" | base64 -d)
+
+    if [ -z "$JDBC_URI" ]; then
+      echo "JDBC URI not found in secret."
+      exit 1
+    fi
+
+    #  Set path on the pod to save the dump file 
+    TARGET_PATH="/var/lib/postgresql/data/forpgdump"
+
+    # Step 3: Run pg_dump with nohup inside the pod
+    oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "
+      TARGET_PATH=\"$TARGET_PATH\"
+      JDBC_URI=\"$JDBC_URI\"
+      echo \"TARGET_PATH is $TARGET_PATH\"
+      mkdir -p $TARGET_PATH &&
+      chmod 777 $TARGET_PATH &&
+      nohup bash -c '
+        pg_dump $JDBC_URI -Fc -f $TARGET_PATH/cams_backup.dump > $TARGET_PATH/pgdump.log 2>&1 &&
+        echo \"Backup succeeded. Please copy $TARGET_PATH/cams_backup.dump file from this pod to a safe place and delete it on this pod to save space.\" >> $TARGET_PATH/pgdump.log
+      ' &
+      echo \"pg_dump started in background. Logs: $TARGET_PATH/pgdump.log\"
+    "
+
+    Run the backup_postgres.sh script:
+
+    ./backup_postgres.sh
+
+    The script starts the backup in a separate terminal session.
+    Set the REPLICA_POD environment variable:
+
+    REPLICA_POD=$(oc get pods -n ${PROJECT_CPD_INST_OPERANDS} -l app=ccs-cams-postgres -o jsonpath='{range .items[?(@.metadata.labels.role=="replica")]}{.metadata.name}{"\n"}{end}')
+
+    Open a remote shell in the replica pod:
+
+    oc rsh ${REPLICA_POD}
+
+    Change to the /var/lib/postgresql/data/forpgdump/ directory:
+
+    cd /var/lib/postgresql/data/forpgdump/
+
+    Run the following command to monitor the list of files in the directory:
+
+    ls -lat
+
+    Wait for the backup to complete. (This process can take several hours if the database is large.)
+    Backup phase
+    	
+    What to look for
+    In progress	During the backup, the size of the pgdump.log file increases.
+    Complete	The backup is complete when the script writes the following message to the pgdump.log file:
+
+    Backup succeeded. Please copy /var/lib/postgresql/data/forpgdump/cams_backup.dump 
+    file from this pod to a safe place and delete it on this pod to save space.
+
+    Failed	If the backup fails, the pgdump.log file will include error messages.
+
+    If the backup fails, contact IBM Support.
+
+    Append the pgdump.log file to your support case.
+
+    Do not proceed to the next step unless the backup is complete.
+    Set the POSTGRES_BACKUP_STORAGE_LOCATION environment variable to the location where you want to store the backup:
+
+    export POSTGRES_BACKUP_STORAGE_LOCATION=<directory>
+
+    Important: Ensure that you choose a location where the file will not be accidentally deleted.
+    Copy the backup to the POSTGRES_BACKUP_STORAGE_LOCATION:
+
+    oc cp ${REPLICA_POD}:/var/lib/postgresql/data/forpgdump/cams_backup.dump \
+    $POSTGRES_BACKUP_STORAGE_LOCATION/cams_backup.dump
+
+    Delete the backup from the replica pod:
+
+    oc rsh $REPLICA_POD rm -f /var/lib/postgresql/data/forpgdump/cams_backup.dump
+
+    Proceed to 6. Consolidating the PostgreSQL database.
+
+6. Consolidating the PostgreSQL database
+
+After you back up the new PostgreSQL database, you must consolidate all of the existing copies of identical data across governed catalogs into a single record so that all identical data assets share a set of common properties.
+
+    Save the following script on the client workstation as a file named postgres-consolidation.sh
+
+    #!/bin/bash
+    #set -x
+
+    # Maximum number of retry attempts
+    MAX_RETRIES=2
+    RETRY_COUNT=0
+
+    # Function to run the consolidation process
+    run_consolidation() {
+        local attempt=$1
+        local skip_restart=$2
+        echo "==========================================" >&2
+        echo "Consolidation Attempt: $attempt of $MAX_RETRIES" >&2
+        echo "==========================================" >&2
+        
+        # Make sure PROJECT_CPD_INST_OPERANDS is set
+        echo "Step 1: Validating environment variables..." >&2
+        if [ -z "$PROJECT_CPD_INST_OPERANDS" ]; then
+            echo "ERROR: Environment variable PROJECT_CPD_INST_OPERANDS is not defined for namespace where CPD is running." >&2
+            exit 1
+        fi
+        echo "✓ PROJECT_CPD_INST_OPERANDS namespace is: $PROJECT_CPD_INST_OPERANDS" >&2
+
+        # Step 2: Find the replica pod
+        echo "" >&2
+        echo "Step 2: Finding replica pod..." >&2
+        REPLICA_POD=$(oc get pods -n $PROJECT_CPD_INST_OPERANDS -l app=ccs-cams-postgres -o jsonpath='{range .items[?(@.metadata.labels.role=="replica")]}{.metadata.name}{"\n"}{end}')
+
+        if [ -z "$REPLICA_POD" ]; then
+            echo "ERROR: No replica pod found." >&2
+            exit 1
+        fi
+        echo "✓ Replica pod: $REPLICA_POD" >&2
+
+        # Step 3: Extract JDBC URI from a secret
+        echo "" >&2
+        echo "Step 3: Extracting JDBC URI from secret..." >&2
+        JDBC_URI=$(oc get secret ccs-cams-postgres-app -n $PROJECT_CPD_INST_OPERANDS -o jsonpath="{.data.uri}" | base64 -d)
+
+        if [ -z "$JDBC_URI" ]; then
+            echo "ERROR: JDBC URI not found in secret." >&2
+            exit 1
+        fi
+        echo "✓ JDBC URI extracted successfully" >&2
+
+        # Step 4: Mark catalogs as opt in
+        echo "" >&2
+        echo "Step 4: Marking catalogs as opt-in..." >&2
+        oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "psql -d ${JDBC_URI} -c \"UPDATE cams.catalog SET is_sharing_properties = 'true', optimistic_lock_id = optimistic_lock_id + 1 WHERE id in (SELECT id FROM cams.catalog where container_type = 'catalog' and (is_governed='true' or subtype='ibm_data_product_catalog')) and catalog.bss_account = '999';COMMIT;\"" >&2
+        echo "✓ Catalogs marked as opt-in" >&2
+
+        # Step 5: Rolling restart of catalog-api (skip on retries)
+        if [ "$skip_restart" != "true" ]; then
+            echo "" >&2
+            echo "Step 5: Performing rolling restart of catalog-api..." >&2
+            oc rollout restart deployment/catalog-api -n $PROJECT_CPD_INST_OPERANDS >&2
+            echo "Waiting for rollout to complete..." >&2
+            oc rollout status deployment/catalog-api -n $PROJECT_CPD_INST_OPERANDS >&2
+            echo "✓ Catalog-api restart complete" >&2
+        else
+            echo "" >&2
+            echo "Step 5: Skipping rolling restart (retry attempt)" >&2
+        fi
+
+        # Step 6: Initialize content
+        echo "" >&2
+        echo "Step 6: Initializing shared assets content..." >&2
+        ICP4D_URL=$(oc get route cpd -o json | grep -i "host\"" | head -n 1 | awk -F '"' '{print $4}')
+        AUTH_TOKEN=$(oc get secret wdp-service-id -o yaml | grep "service-id-credentials:" | head -n 1 | awk -F ": " '{print $2}'| base64 -d  | xargs)
+        echo "ICP4D URL: $ICP4D_URL" >&2
+        curl -k -X PUT "https://$ICP4D_URL/v2/shared_assets/initialize_content?bss_account_id=999" \
+             -H "Authorization: Basic $AUTH_TOKEN" >&2
+        echo "" >&2
+        echo "✓ Content initialization triggered" >&2
+
+        # Step 7: Monitor asset consolidation (ONLY pipe-delimited keys, NO UUID patterns)
+        echo "" >&2
+        echo "Step 7: Monitoring asset consolidation progress..." >&2
+        TIMEOUT=6000
+        INTERVAL=30
+        ASSET_NUM=1
+        start_time=$SECONDS
+        
+        # Loop until the output is not the expected string or a timeout occurs
+        while [ "$ASSET_NUM" -ne 0 ]; do
+            # Check if the timeout has been reached
+            if (( SECONDS - start_time >= TIMEOUT )); then
+                echo "ERROR: Timeout reached after $TIMEOUT seconds. Exiting script." >&2
+                exit 1
+            fi
+
+            ASSET_NUM=$(oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "psql -d ${JDBC_URI} -c \"SELECT COUNT(resource_key) as asset_count FROM ( SELECT DISTINCT ON (resource_key) resource_key, catalog_id, asset_id from cams.asset where is_revision='false' and state = 'available' and asset_type = 'data_asset' and set_id is NULL and metadata->>'is_branched' = 'false' and (resource_key like '%|%' or identity_key like '%|%') and (catalog_id in (SELECT id FROM cams.catalog where is_sharing_properties = 'true' and container_type = 'catalog' and state = 'active' and bss_account = '999'))) AS distinct_assets;\"" | head -3 | tail -1 | tr -d '[:blank:]')
+            echo "  → Assets remaining: $ASSET_NUM" >&2
+
+            # Wait before the next attempt
+            if [ "$ASSET_NUM" -ne 0 ]; then
+                echo "  → Waiting 30 seconds before next check..." >&2
+                sleep $INTERVAL
+            fi
+        done
+        echo "✓ Asset consolidation monitoring complete" >&2
+        
+        # Step 8: Final verification
+        echo "" >&2
+        echo "Step 8: Performing final verification..." >&2
+        echo "Checking containers at SQL level..." >&2
+        oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "psql -d ${JDBC_URI} -c \"SELECT count(id) FROM cams.catalog where container_type = 'catalog' and (is_governed='true' or subtype='ibm_data_product_catalog') and catalog.bss_account = '999' and (is_sharing_properties IS NULL or is_sharing_properties = 'false'); \"" >&2
+        
+        echo "Checking final asset count..." >&2
+        FINAL_ASSET_NUM=$(oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "psql -d ${JDBC_URI} -c \"SELECT COUNT(resource_key) as asset_count FROM ( SELECT DISTINCT ON (resource_key) resource_key, catalog_id, asset_id from cams.asset where is_revision='false' and state = 'available' and asset_type = 'data_asset' and set_id is NULL and (resource_key like '%|%' or identity_key like '%|%' or resource_key ~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' or identity_key ~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') and (catalog_id in (SELECT id FROM cams.catalog where is_sharing_properties = 'true' and state = 'active' and container_type = 'catalog' and bss_account = '999'))) AS distinct_assets;\"" | head -3 | tail -1 | tr -d '[:blank:]')
+        echo "  → Final asset count: $FINAL_ASSET_NUM" >&2
+        echo "✓ Verification complete" >&2
+        
+        # Return the asset count (only this goes to stdout)
+        echo "$FINAL_ASSET_NUM"
+    }
+
+    # Main retry loop
+    echo "=========================================="
+    echo "Starting Consolidation Script with Retry Logic"
+    echo "Maximum retries: $MAX_RETRIES"
+    echo "=========================================="
+
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        
+        # Run consolidation and capture the remaining asset count
+        # Skip restart on retry attempts (attempt > 1)
+        if [ $RETRY_COUNT -gt 1 ]; then
+            REMAINING_ASSETS=$(run_consolidation $RETRY_COUNT "true")
+        else
+            REMAINING_ASSETS=$(run_consolidation $RETRY_COUNT "false")
+        fi
+        
+        # Handle empty or non-numeric values
+        if [ -z "$REMAINING_ASSETS" ] || ! [[ "$REMAINING_ASSETS" =~ ^[0-9]+$ ]]; then
+            echo "=========================================="
+            echo "ERROR: Could not determine remaining asset count on attempt $RETRY_COUNT"
+            echo "Received value: '$REMAINING_ASSETS'"
+            echo "=========================================="
+            exit 1
+        fi
+        
+        if [ "$REMAINING_ASSETS" -eq 0 ]; then
+            echo ""
+            echo "=========================================="
+            echo "✓ SUCCESS: Initial consolidation complete on attempt $RETRY_COUNT"
+            echo "=========================================="
+            exit 0
+        else
+            echo ""
+            echo "=========================================="
+            echo "⚠ Initial consolidation incomplete on attempt $RETRY_COUNT"
+            echo "Remaining assets: $REMAINING_ASSETS"
+            
+            if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "Retrying... (Attempt $((RETRY_COUNT + 1)) of $MAX_RETRIES)"
+                echo "Waiting 60 seconds before retry..."
+                echo "=========================================="
+                sleep 60
+            else
+                echo "=========================================="
+                echo "⚠ Maximum retry attempts ($MAX_RETRIES) reached."
+                echo "Initial consolidation incomplete after $MAX_RETRIES attempts."
+                echo ""
+                echo "Generating remaining_assets.csv and processing via API..."
+                echo "=========================================="
+                
+                # Get required variables
+                ICP4D_URL=$(oc get route cpd -o json | grep -i "host\"" | head -n 1 | awk -F '"' '{print $4}')
+                REPLICA_POD=$(oc get pods -n $PROJECT_CPD_INST_OPERANDS -l app=ccs-cams-postgres -o jsonpath='{range .items[?(@.metadata.labels.role=="replica")]}{.metadata.name}{"\n"}{end}')
+                JDBC_URI=$(oc get secret ccs-cams-postgres-app -n $PROJECT_CPD_INST_OPERANDS -o jsonpath="{.data.uri}" | base64 -d)
+                AUTH_TOKEN=$(oc get secret wdp-service-id -o yaml | grep "service-id-credentials:" | head -n 1 | awk -F ": " '{print $2}'| base64 -d  | xargs)
+                
+                # Generate CSV with remaining assets (INCLUDES UUID patterns, NO is_branched check)
+                echo "Querying remaining assets..."
+                oc exec "$REPLICA_POD" -n $PROJECT_CPD_INST_OPERANDS -- bash -c "psql -d ${JDBC_URI} -t -A -F',' -c \"SELECT catalog_id, asset_id FROM ( SELECT DISTINCT ON (resource_key) resource_key, catalog_id, asset_id from cams.asset where is_revision='false' and state = 'available' and asset_type = 'data_asset' and set_id is NULL and (resource_key like '%|%' or identity_key like '%|%' or resource_key ~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' or identity_key ~ '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}') and (catalog_id in (SELECT id FROM cams.catalog where is_sharing_properties = 'true' and container_type = 'catalog' and state = 'active' and bss_account = '999'))) AS distinct_assets;\"" > remaining_assets.csv
+                
+                echo "✓ Remaining assets saved to remaining_assets.csv"
+                
+                # Process each asset via API
+                echo ""
+                echo "Processing remaining assets via API..."
+                TOTAL_ASSETS=$(wc -l < remaining_assets.csv | tr -d '[:blank:]')
+                CURRENT=0
+                FAILED=0
+                
+                while IFS=',' read -r catalog_id asset_id; do
+                    # Skip empty lines
+                    if [ -z "$catalog_id" ] || [ -z "$asset_id" ]; then
+                        continue
+                    fi
+                    
+                    CURRENT=$((CURRENT + 1))
+                    echo "[$CURRENT/$TOTAL_ASSETS] Processing asset: catalog_id=$catalog_id, asset_id=$asset_id"
+                    
+                    # Call the API for each asset
+                    HTTP_CODE=$(curl -k -s -o /dev/null -w "%{http_code}" -X PUT \
+                        "https://$ICP4D_URL/v2/shared_assets/initialize_content?bss_account_id=999&asset_id=$asset_id&catalog_id=$catalog_id" \
+                        -H "Authorization: Basic $AUTH_TOKEN")
+                    
+                    if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+                        echo "  ✓ Success (HTTP $HTTP_CODE)"
+                    else
+                        echo "  ✗ Failed (HTTP $HTTP_CODE) for asset_id: $asset_id and catalog_id : $catalog_id"
+                        FAILED=$((FAILED + 1))
+                    fi
+                    
+                    # Small delay to avoid overwhelming the API
+                    sleep 1
+                done < remaining_assets.csv
+                
+                echo ""
+                echo "=========================================="
+                echo "API Processing Complete"
+                echo "Total assets processed: $TOTAL_ASSETS"
+                echo "Failed: $FAILED"
+                echo "Successful: $((TOTAL_ASSETS - FAILED))"
+                echo "=========================================="
+                
+                if [ $FAILED -gt 0 ]; then
+                    echo "⚠ Some assets failed to process. Check the output above for details."
+                    exit 1
+                else
+                    echo "✓ All remaining assets processed successfully"
+                    exit 0
+                fi
+            fi
+        fi
+    done
+
+    Change to the directory where you created the postgres-consolidation.sh script
+    Make the script executable:
+
+    chmod +x postgres-consolidation.sh
+
+    Log in to Red Hat® OpenShift® Container Platform as a user with sufficient permissions to complete the task.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Run the postgres-consolidation.sh script:
+
+    ./postgres-consolidation.sh
+
+    The script returns output with the following format:
+
+    ==========================================
+
+    Starting Consolidation Script with Retry Logic
+
+    Maximum retries: 2
+
+    ==========================================
+
+    ==========================================
+
+    Consolidation Attempt: 1 of 2
+
+    ==========================================
+
+    Step 1: Validating environment variables...
+
+    ✓ PROJECT_CPD_INST_OPERANDS namespace is: ibm-cpd-inst-operands
+
+
+
+    Step 2: Finding replica pod...
+
+    ✓ Replica pod: ccs-cams-postgres-2
+
+
+
+    Step 3: Extracting JDBC URI from secret...
+
+    ✓ JDBC URI extracted successfully
+
+
+
+    Step 4: Marking catalogs as opt-in...
+
+    Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+
+    UPDATE 0
+
+    COMMIT
+
+    WARNING: there is no transaction in progress
+
+    ✓ Catalogs marked as opt-in
+
+
+
+    Step 5: Performing rolling restart of catalog-api...
+
+    deployment.apps/catalog-api restarted
+
+    Waiting for rollout to complete...
+
+    Waiting for deployment "catalog-api" rollout to finish: 1 out of 2 new replicas have been updated...
+
+    Waiting for deployment "catalog-api" rollout to finish: 1 out of 2 new replicas have been updated...
+
+    Waiting for deployment "catalog-api" rollout to finish: 1 out of 2 new replicas have been updated...
+
+    Waiting for deployment "catalog-api" rollout to finish: 1 old replicas are pending termination...
+
+    Waiting for deployment "catalog-api" rollout to finish: 1 old replicas are pending termination...
+
+    deployment "catalog-api" successfully rolled out
+
+    ✓ Catalog-api restart complete
+
+
+
+    Step 6: Initializing shared assets content...
+
+    ICP4D URL: cpd-cpd-prd-inst-operands.apps.ocpproddx03.etisalat.corp.ae
+
+    {"transaction_id":"bl5jham77pc58c948us9e76es"}
+
+    ✓ Content initialization triggered
+
+
+
+    Step 7: Monitoring asset consolidation progress...
+
+    Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+
+     → Assets remaining: 0
+
+    ✓ Asset consolidation monitoring complete
+
+
+
+    Step 8: Performing final verification...
+
+    Checking containers at SQL level...
+
+    Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+
+     count
+
+    -------
+
+       0
+
+    (1 row)
+
+
+
+    Checking final asset count...
+
+    Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+
+     → Final asset count: 0
+
+    ✓ Verification complete
+
+
+
+    ==========================================
+
+    ✓ SUCCESS: Initial consolidation complete on attempt 1
+
+    ==========================================
+
+    Review the output to ensure that the final asset count is 0 (zero):
+
+
+    Checking final asset count...
+
+    Defaulted container "postgres" out of: postgres, bootstrap-controller (init)
+
+     → Final asset count: 0
+
+    ✓ Verification complete
+
+        If the final asset count is 0, proceed to What to do if the consolidation completed successfully.
+        If the final asset count is a non-zero number, run the postgres-consolidation.sh script again.
+
+        If the script still returns a non-zero number, contact IBM Support.
+
+What to do if the consolidation completed successfully
+
+If the PostgreSQL database consolidation was successful, wait several weeks to confirm that the projects, catalogs, and spaces in your environment are working as expected.
+
+After you confirm that the projects, catalogs, and spaces are working as expected, run the following commands to clean up the migration resources:
+
+    Delete the pods associated with the migration:
+
+    oc delete pod \
+    -n ${PROJECT_CPD_INST_OPERANDS} \
+    -l app=cams-postgres-migration-app
+
+    Delete the jobs associated with the migration:
+
+    oc delete job \
+    -n ${PROJECT_CPD_INST_OPERANDS} \
+    -l app=cams-postgres-migration-app
+
+    Delete the config maps associated with the migration:
+
+    oc delete cm \
+    -n ${PROJECT_CPD_INST_OPERANDS} \
+    -l app=cams-postgres-migration-app
+
+    Delete the secrets associated with the migration:
+
+    oc delete secret \
+    -n ${PROJECT_CPD_INST_OPERANDS} \
+    -l app=cams-postgres-migration-app
+
+    Delete the persistent volume claim associated with the migration:
+
+    oc delete pvc cams-postgres-migration-pvc \
+    -n ${PROJECT_CPD_INST_OPERANDS}
+
+Cleaning up CouchDB databases
+
+After you verify that the migration from CouchDB to PostgreSQL was successful, you can delete the CouchDB databases.
+Attention: This task will permanently delete the CouchDB databases that are associated with this instance of the catalog-api service. Do not complete this task unless you have verified that IBM Knowledge Catalog is working as expected, which includes verifying that all of your projects, catalogs, and assets are available.
+
+Prerequisites
+    Ensure that you have the following software on the client workstation:
+
+        Python 3
+        To confirm that Python 3 is installed, run:
+
+        python3 --version
+
+        Python requests module
+        To install the requests module, run:
+
+        python3 -m pip install requests
+
+To clean up the CouchDB databases:
+
+    Create a directory called couchdb_cleanup on the client workstation.
+    Change to the couchdb_cleanup directory and create the following files:
+        Save the following YAML as a file named couchdb_route.yaml:
+
+        kind: Route
+        apiVersion: route.openshift.io/v1
+        metadata:
+          labels:
+            app: couchdb-route
+          name: couchdb-route
+        spec:
+          to:
+            kind: Service
+            name: wdp-couchdb-svc
+          port:
+            targetPort: https
+          tls:
+            termination: passthrough
+            insecureEdgeTerminationPolicy: None
+          wildcardPolicy: None
+
+        Save the following Python script as a file named cpd_catalog_api_post_migration_couchdb_cleanup.py:
+
+        #!/usr/bin/env python3
+        # coding: utf-8
+
+        import requests
+        import json
+        import argparse
+        from concurrent.futures import ThreadPoolExecutor
+        import threading
+
+        # Thread-safe counters
+        successful_deletes = 0
+        failed_deletes = 0
+        counter_lock = threading.Lock()
+
+        def list_dbs(db_list, db_prefix):
+            """List databases matching the prefix"""
+            if not db_list:
+                print("\nNo databases found matching prefix '{}'".format(db_prefix))
+                return
+            
+            print("\nDatabases matching prefix '{}':\n".format(db_prefix))
+            print("=" * 50)
+            for db in db_list:
+                print(db)
+            print("=" * 50)
+            print("\nTotal databases found: {}".format(len(db_list)))
+
+        def delete_db(db, auth, hostname, verify_ssl):
+            """Delete a single database and update counters"""
+            global successful_deletes, failed_deletes
+
+            url = hostname + db
+            response = requests.delete(url, auth=auth, verify=verify_ssl)
+
+            with counter_lock:
+                if response.status_code == 200:
+                    print("Successfully deleted database: {}".format(db))
+                    successful_deletes += 1
+                else:
+                    print("Failed to delete database: {} (Status code: {})".format(
+                        db, response.status_code))
+                    failed_deletes += 1
+
+        def main():
+            parser = argparse.ArgumentParser()
+            parser.add_argument("-p", "--cloudantpassword", required=True,
+                                help="ci cloudant password")
+            parser.add_argument("-t", "--threads", type=int, default=5,
+                                help="number of threads to use (default: 5)")
+            parser.add_argument("-H", "--hostname", required=True,
+                                help="hostname of the Cloudant instance.")
+            parser.add_argument("-u", "--username", required=True,
+                                help="username for Cloudant authentication")
+            parser.add_argument("-r", "--remove-cams-dbs", required=False,
+                                help="delete all dbs belonging to CAMS")
+            parser.add_argument("-l", "--list-cams-dbs", required=False,
+                                help="list all dbs belonging to CAMS")
+            parser.add_argument("--insecure-skip-tls-verify", action="store_true",
+                                help="If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure")
+            args = parser.parse_args()
+
+            password = str(args.cloudantpassword)
+            hostname = args.hostname
+            username = args.username
+            remove_cams_dbs = args.remove_cams_dbs
+            list_cams_dbs = args.list_cams_dbs
+            verify_ssl = not args.insecure_skip_tls_verify
+
+            # Validate that exactly one of remove-cams-dbs or list-cams-dbs is provided
+            options_provided = sum([bool(remove_cams_dbs), bool(list_cams_dbs)])
+            
+            if options_provided == 0:
+                parser.error("Error: One of --remove-cams-dbs or --list-cams-dbs must be provided")
+            
+            if options_provided > 1:
+                parser.error("Error: Cannot specify both --remove-cams-dbs and --list-cams-dbs. Please provide only one")
+            
+            # Set db_prefix to 'v2_' for CAMS databases
+            db_prefix = 'v2_'
+
+            # Ensure hostname ends with a slash
+            if not hostname.endswith('/'):
+                hostname += '/'
+
+            url = hostname + "_all_dbs"
+            print("Cloudant instance: {}".format(url))
+
+            response = requests.get(url, auth=(username, password), verify=verify_ssl)
+            print("Response status: {}\n".format(response.status_code))
+
+            all_dbs = json.loads(response.text)
+
+            # Filter databases by prefix
+            db_list = [db for db in all_dbs if db.startswith(db_prefix)]
+
+            total_dbs = len(db_list)
+            total_filtered = len(all_dbs) - total_dbs
+
+            print("Found {} total databases".format(len(all_dbs)))
+            print("Filtered {} databases that don't start with '{}' prefix".format(total_filtered, db_prefix))
+            print("Found {} databases matching prefix\n".format(total_dbs))
+
+            # If list-cams-dbs is set, just list the databases and exit
+            if list_cams_dbs:
+                list_dbs(db_list, db_prefix)
+                return
+
+            # Check if there are any databases to delete
+            if not db_list:
+                print("No databases found to delete with prefix '{}'".format(db_prefix))
+                return
+
+            # Create thread pool and execute deletions
+            with ThreadPoolExecutor(max_workers=args.threads) as executor:
+                # Create list of auth tuples for each task
+                auth_list = [(username, password)] * len(db_list)
+                hostname_list = [hostname] * len(db_list)
+                verify_ssl_list = [verify_ssl] * len(db_list)
+
+                # Map the delete_db function across all databases
+                executor.map(lambda x: delete_db(*x), zip(db_list, auth_list, hostname_list, verify_ssl_list))
+
+            print("\nDeletion Summary:")
+            print("----------------")
+            print("Total databases processed: {}".format(total_dbs))
+            print("Successfully deleted: {}".format(successful_deletes))
+            print("Failed to delete: {}".format(failed_deletes))
+
+        if __name__ == "__main__":
+            main()
+
+        Save the following Bash script as a file named cpd_catalog_api_post_migration_cleanup.sh:
+
+        #!/bin/bash
+
+        set -e
+
+        SCRIPT_DIR=$(dirname $(readlink -f "$0"))
+
+        usage() {
+            cat <<EOF
+        This is a wrapper script to list existing catalog-api databases and remove those databases.
+
+        Usage: cpd_catalog_api_post_migration_cleanup.sh <action>
+
+        Arguments:
+            <action>    Action to perform: remove_dbs or list_dbs
+
+        Examples:
+            cpd_catalog_api_post_migration_cleanup.sh remove_dbs
+            cpd_catalog_api_post_migration_cleanup.sh list_dbs
+                
+        EOF
+            exit 1;
+        }
+
+        function create_couchdb_route {
+            oc apply -f "${SCRIPT_DIR}/couchdb_route.yaml"
+        }
+
+        function run_cleanup {
+            route_host=$(oc get route couchdb-route -o jsonpath='{.spec.host}')
+            couchdb_url="https://$route_host"
+            couchdb_user=admin
+            couchdb_password=$(oc get secret wdp-couchdb -o jsonpath='{.data.adminPassword}' | base64 -d)
+            
+            curl -k -s "$couchdb_url" > /dev/null # ensure that the URL is active
+            
+            if [ "$ACTION" == "remove_dbs" ]; then
+                echo "Removing CAMS databases..."
+                python3 "${SCRIPT_DIR}/cpd_catalog_api_post_migration_cleanup.py" \
+                    -H "$couchdb_url" \
+                    -u "$couchdb_user" \
+                    -p "$couchdb_password" \
+                    --remove-cams-dbs true \
+                    --insecure-skip-tls-verify
+            elif [ "$ACTION" == "list_dbs" ]; then
+                echo "Listing CAMS databases..."
+                python3 "${SCRIPT_DIR}/cpd_catalog_api_post_migration_cleanup.py" \
+                    -H "$couchdb_url" \
+                    -u "$couchdb_user" \
+                    -p "$couchdb_password" \
+                    --list-cams-dbs true \
+                    --insecure-skip-tls-verify
+            else
+                echo "Invalid action: $ACTION" >&2
+                exit 2
+            fi
+        }
+
+        function delete_couchdb_route {
+            oc delete route couchdb-route --ignore-not-found
+        }
+
+        if [ -z "$1" ]; then
+            usage
+        fi
+
+        ACTION=$1
+
+        if [ "$ACTION" != "remove_dbs" ] && [ "$ACTION" != "list_dbs" ]; then
+            echo "Error: Action must be either 'remove_dbs' or 'list_dbs'" >&2
+            usage
+        fi
+
+        create_couchdb_route
+        run_cleanup
+        delete_couchdb_route
+
+        Make the Bash script executable:
+
+        chmod +x cpd_catalog_api_post_migration_cleanup.sh
+
+    Log in to Red Hat OpenShift Container Platform as a user with sufficient permissions to complete the task.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Change to the project where IBM Software Hub is installed:
+
+    oc project ${PROJECT_CPD_INST_OPERANDS}
+
+    Review the list of catalog-api databases that the script will remove:
+
+    ./cpd_catalog_api_post_migration_cleanup.sh list_dbs
+
+    Delete the catalog-api databases.
+    Important: This action cannot be undone.
+
+    ./cpd_catalog_api_post_migration_cleanup.sh remove_dbs
+
+    Confirm that the catalog-api databases were deleted:
+
+    ./cpd_catalog_api_post_migration_cleanup.sh list_dbs
+
+    The output should show 0 databases.
+
+Parent topic:
+Setting up services after install or upgrade
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+
+    On this page
+    1. Checking the migration method used
+    2. Checking the status of the migration jobs
+    3. Completing the migration
+    4. Collecting statistics about the migration
+    5. Backing up the PostgreSQL database
+    6. Consolidating the PostgreSQL database
+    What to do if the consolidation completed successfully
+    Cleaning up CouchDB databases
+

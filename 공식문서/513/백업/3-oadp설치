@@ -1,0 +1,1412 @@
+https://www.ibm.com/docs/en/software-hub/5.1.x?topic=software-installing-configuring-oadp-utility
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Installing and configuring the IBM Software Hub OADP utility on the source cluster
+Last Updated: 2026-08-26
+
+A cluster administrator can install and configure the IBM Software Hub OpenShift® API for Data Protection (OADP) backup and restore utility.
+Overview
+
+The IBM Software Hub OADP utility supports the following scenarios:
+
+    Online backup and restore to the same cluster
+    Offline backup and restore to the same cluster
+    Offline backup and restore to a different cluster
+
+Installing and configuring the OADP utility involves the following high-level steps.
+
+    Setting up a client workstation.
+    If your cluster is in a restricted network, moving images for the cpd-cli to the private container registry.
+    Installing IBM Software Hub OADP components.
+    Installing the jq JSON command-line utility.
+    Configuring the IBM Software Hub OADP utility.
+    For online backup and restore, creating volume snapshot classes for the storage that you are using.
+
+1. Setting up a client workstation
+
+To install IBM Software Hub backup and restore utilities, you must have a client workstation that can connect to the Red Hat® OpenShift Container Platform cluster.
+
+Who needs to complete this task?
+    All administrators Any user who is involved in installing IBM Software Hub must have access to a client workstation.
+When do you need to complete this task?
+    Repeat as needed You must have at least one client workstation. You can repeat the tasks in this section as many times as needed to set up multiple client workstations.
+
+Before you install any software on the client workstation, ensure that the workstation meets the requirements in:
+
+    Internet connection requirements
+    Operating system requirements
+    Container runtime requirements
+
+Internet connection requirements
+    Some installation and upgrade tasks require a connection to the internet. If your cluster is in a restricted network, you can either:
+
+        Move the workstation behind the firewall after you complete the tasks that require an internet connection.
+        Prepare a client workstation that can connect to the internet and a client workstation that can connect to the cluster and transfer any files from the internet-connected workstation to the cluster-connected workstation.
+
+    When the workstation is connected to the internet, the workstation must be able to access the following sites:
+    Site name
+    	
+    Host name
+    	
+    Description
+    GitHub	https://www.github.com/IBM	The CASE packages and the IBM Software Hub command-line interface are hosted on GitHub.
+
+    If your company does not permit access toGitHub, contact IBM Support for help obtaining the IBM Software Hub command-line interface.
+
+    You can use the --from_oci option to pull CASE packages from the IBM Cloud Pak Open Container Initiative (OCI) registry.
+    IBM Entitled Registry	
+
+        icr.io
+        cp.icr.io
+        dd0.icr.io
+        dd2.icr.io
+        dd4.icr.io
+        dd6.icr.io
+
+    If you're located in China, you must also allow access to the following hosts:
+
+        dd1-icr.ibm-zh.com
+        dd3-icr.ibm-zh.com
+        dd5-icr.ibm-zh.com
+        dd7-icr.ibm-zh.com
+
+    	The images for the IBM Software Hub software are hosted on the IBM Entitled Registry.
+
+    You can pull the images directly from the IBM Entitled Registry or you can mirror the images to a private container registry.
+
+    To validate that you can connect to the IBM Entitled Registry, run the following command:
+
+    curl -v https://icr.io
+
+    The command returns a message similar to:
+
+    * Connected to icr.io (169.60.98.86) port 443 (#0)
+
+    The IP address might be different.
+Operating system requirements
+    The client workstation must be running a supported operating system:
+    Operating system
+    	
+    Notes
+    Linux®	 
+    Mac OS	 
+    Windows	To run on Windows, you must install Windows Subsystem for Linux.
+Container runtime requirements
+
+    The workstation must have a supported container runtime.
+    Operating system
+    	
+    Docker
+    	
+    Podman
+    	
+    Notes
+    Linux	✓	✓	 
+    Mac OS	✓	✓	 
+    Windows	✓	✓	
+    Set up the container runtime inside Windows Subsystem for Linux.
+
+1.1 Installing the IBM Software Hub command-line interface
+
+To install IBM Software Hub software on your Red Hat OpenShift Container Platform cluster, you must install the IBM Software Hub command-line interface (cpd-cli) on the workstation from which you are running the installation commands.
+
+Who needs to complete this task?
+    User
+    	
+    Why you need the cpd-cli
+    Cluster administrator	
+
+        Configure the image pull secret
+        Change node settings
+        Set up projects where IBM Software Hub will be installed
+
+    Instance administrator	Install IBM Software Hub
+    Registry administrator	Mirror images to the private container registry.
+When do you need to complete this task?
+
+    Repeat as needed You must complete this task on any workstation from which you plan to run installation commands.
+
+    You can also complete this task if you need to use the cpd-cli to complete other tasks, such as backing up and restoring your installation or managing users.
+
+You must install the cpd-cli on a client workstation that can connect to your cluster.
+
+    Download Version 14.1.3 of the cpd-cli from the IBM/cpd-cli repository on GitHub.
+
+    Ensure that you download the correct package based on the operating system on the client workstation:
+    Workstation operating system
+    	
+    Enterprise Edition
+    	
+    Standard Edition
+    Linux	The package that you download depends on your hardware:
+
+    x86_64
+        cpd-cli-linux-EE-14.1.3.tgz
+    ppc64le
+        cpd-cli-ppc64le-EE-14.1.3.tgz
+    s390x
+        cpd-cli-s390x-EE-14.1.3.tgz
+
+    	The package that you download depends on your hardware:
+
+    x86_64
+        cpd-cli-linux-SE-14.1.3.tgz
+    ppc64le
+        cpd-cli-ppc64le-SE-14.1.3.tgz
+    s390x
+        cpd-cli-s390x-SE-14.1.3.tgz
+
+    Mac OS	cpd-cli-darwin-EE-14.1.3.tgz	cpd-cli-darwin-SE-14.1.3.tgz
+    Windows	
+
+    You must download the Linux package and run it in Windows Subsystem for Linux:
+    cpd-cli-linux-EE-14.1.3.tgz	
+
+    You must download the Linux package and run it in Windows Subsystem for Linux:
+    cpd-cli-linux-SE-14.1.3.tgz
+    Extract the contents of the package to the directory where you want to run the cpd-cli.
+    On Mac OS, you must trust the following components of the cpd-cli:
+        cpd-cli
+        plugins/lib/darwin/config
+        plugins/lib/darwin/cpdbr
+        plugins/lib/darwin/cpdbr-oadp
+        plugins/lib/darwin/cpdctl
+        plugins/lib/darwin/cpdtool
+        plugins/lib/darwin/health
+        plugins/lib/darwin/manage
+        plugins/lib/darwin/platform-diag
+        plugins/lib/darwin/platform-mgmt
+    For each component:
+        Right-click the component and select Open.
+
+        You will see a message with the following format:
+
+        macOS cannot verify the developer of component-name. Are you sure you want to open it?
+
+        Click Open.
+    Best practice Make the cpd-cli executable from any directory.
+
+    By default, you must either change to the directory where the cpd-cli is located or specify the fully qualified path of the cpd-cli to run the commands.
+
+    However, you can make the cpd-cli executable from any directory so that you only need to type cpd-cli command-name to run the commands.
+    Workstation operating system
+    	
+    Details
+    Linux	Add the following line to your ~/.bashrc file:
+
+    export PATH=<fully-qualified-path-to-the-cpd-cli>:$PATH
+
+    Mac OS	Add the following line to your ~/.bash_profile or ~/.zshrc file:
+
+    export PATH=<fully-qualified-path-to-the-cpd-cli>:$PATH
+
+    Windows	From the Windows Subsystem for Linux, add the following line to your ~/.bashrc file:
+
+    export PATH=<fully-qualified-path-to-the-cpd-cli>:$PATH
+
+    Best practice Determine whether you need to set any of the following environment variables for the cpd-cli.
+
+    CPD_CLI_MANAGE_WORKSPACE
+        By default, the first time you run a cpd-cli manage command, the cpd-cli automatically creates the cpd-cli-workspace/olm-utils-workspace/work directory.
+
+        The location of the directory depends on several factors:
+            If you made the cpd-cli executable from any directory, the directory is created in the directory where you run the cpd-cli commands.
+            If you did not make the cpd-cli executable from any directory, the directory is created in the directory where the cpd-cli is installed.
+
+        You can set the CPD_CLI_MANAGE_WORKSPACE environment variable to override the default location.
+
+        The CPD_CLI_MANAGE_WORKSPACE environment variable is especially useful if you made the cpd-cli executable from any directory. When you set the environment variable, it ensures that the files are located in one directory.
+
+        Default value
+            No default value. The directory is created based on the factors described in the preceding text.
+        Valid values
+            The fully qualified path where you want the cpd-cli to create the work directory. For example, if you specify /root/cpd-cli/, the cpd-cli manage plug-in stores files in the /root/cpd-cli/work directory.
+
+        To set the CPD_CLI_MANAGE_WORKSPACE environment variable, run:
+
+        export CPD_CLI_MANAGE_WORKSPACE=<fully-qualified-directory>
+
+    OLM_UTILS_LAUNCH_ARGS
+
+        You can use the OLM_UTILS_LAUNCH_ARGS environment variable to mount certificates that the cpd-cli must use in the cpd-cli container.
+
+        Mount CA certificates
+            Important: If you use a proxy server to mirror images or to download CASE packages, use the OLM_UTILS_LAUNCH_ARGS environment variable to add the CA certificates to enable the olm-utils container to trust connections through the proxy server. For more information, see Cannot access CASE packages when using a proxy server.
+
+            You can mount CA certificates if you need to reach an external HTTPS endpoint that uses a self-signed certificate.
+            Tip: Typically the CA certificates are in the /etc/pki/ca-trust directory on the workstation. If you need additional information on adding certificates to a workstation, run:
+
+            man update-ca-trust
+
+            Determine the correct argument for your environment:
+                If the certificates on the client workstation are in the /etc/pki/ca-trust directory, the argument is:
+
+                " -v /etc/pki/ca-trust:/etc/pki/ca-trust"
+                If the certificates on the client workstation are in a different directory, replace <ca-loc> with the appropriate location on the client workstation:
+
+                " -v <ca-loc>:/etc/pki/ca-trust"
+        Mount Kubernetes certificates
+            You can mount Kubernetes certificates if you need to use a certificate to connect to the Kubernetes API server.
+
+            The argument depends on the location of the certificates on the client workstation. Replace <k8-loc> with the appropriate location on the client workstation:
+
+            " -v <k8-loc>:/etc/k8scert --env K8S_AUTH_SSL_CA_CERT=/etc/k8scert"
+
+        Default value
+            No default value.
+        Valid values
+            The valid values depend on the arguments that you need to pass to the OLM_UTILS_LAUNCH_ARGS environment variable.
+                To pass CA certificates, specify:
+
+                " -v <ca-loc>:/etc/pki/ca-trust"
+                To pass Kubernetes certificates, specify:
+
+                " -v <k8-loc>:/etc/k8scert --env K8S_AUTH_SSL_CA_CERT=/etc/k8scert"
+                To pass both CA certificates and Kubernetes certificates, specify:
+
+                " -v <ca-loc>:/etc/pki/ca-trust -v <k8-loc>:/etc/k8scert --env K8S_AUTH_SSL_CA_CERT=/etc/k8scert"
+
+        To set the OLM_UTILS_LAUNCH_ARGS environment variable, run:
+
+        export OLM_UTILS_LAUNCH_ARGS=" <arguments>"
+
+    Important: If you set either of these environment variables, ensure that you add them to your installation environment variables script.
+    Run the following command to ensure that the cpd-cli is installed and running and that the cpd-cli manage plug-in has the latest version of the olm-utils image.
+
+    cpd-cli manage restart-container
+
+The cpd-cli-workspace directory includes the following sub-directories:
+Directory
+	
+What is stored in the directory?
+olm-utils-workspace/work	
+
+    The components.csv file, which is generated when you run the list-components command.
+    Log files generated by the mirror-images command.
+
+olm-utils-workspace/work/offline	The contents of this directory are organized by release. For example, if you download the CASE packages for Version 5.1.3, the packages are stored in the 5.1.3 directory.
+
+In addition, the output of commands such as the list-images command are stored in the version-specific directories.
+1.2 Installing the OpenShift command-line interface
+
+The IBM Software Hub command-line interface (cpd-cli) interacts with the OpenShift command-line interface (oc CLI) to issue commands to your Red Hat OpenShift Container Platform cluster.
+
+Who needs to complete this task?
+    All administrators Any users who are completing IBM Software Hub installation tasks must install the OpenShift CLI.
+When do you need to complete this task?
+    Repeat as needed You must complete this task on any workstation from which you plan to run installation commands.
+
+You must install a version of the OpenShift CLI that is compatible with your Red Hat OpenShift Container Platform cluster.
+
+To install the OpenShift CLI, follow the appropriate guidance for your cluster:
+
+Self-managed clusters
+
+    Install the version of the oc CLI that corresponds to the version of Red Hat OpenShift Container Platform that you are running. For details, see Getting started with the OpenShift CLI in the Red Hat OpenShift Container Platform documentation:
+
+        Version 4.12
+        Version 4.14
+        Version 4.15
+        Version 4.16
+        Version 4.17
+        Version 4.18
+
+Managed OpenShift clusters
+
+    Follow the appropriate guidance for your managed OpenShift environment.
+    OpenShift environment
+    	
+    Installation instructions
+    IBM Cloud Satellite	See Installing the CLI in the IBM Cloud Satellite documentation.
+    Red Hat OpenShift on IBM Cloud	See Installing the CLI in the IBM Cloud documentation.
+    Azure Red Hat OpenShift (ARO)	See Install the OpenShift CLI in the Azure Red Hat OpenShift documentation
+    Red Hat OpenShift Service on AWS (ROSA)	See Installing the OpenShift CLI in the Red Hat OpenShift Service on AWS documentation.
+    Red Hat OpenShift Dedicated on Google Cloud	See Learning how to use the command-line tools for Red Hat OpenShift Dedicated in the Red Hat OpenShift Dedicated documentation.
+
+2. Moving images for backup and restore to a private container registry
+
+If your cluster pulls images from a private container registry or if your cluster is in a restricted network, you can push the images to the private container registry so that users can run the cpd-cli commands against the cluster.
+
+Who needs to complete this task?
+    A user who has permissions to push images to the private container registry must complete this task.
+When do you need to complete this task?
+    Complete this task if your cluster is in a restricted network or if your security policies require all images to be pulled from a private container registry.
+
+    You can skip this task if your workstations can connect to the public internet and to the cluster at the same time.
+
+The backup and restore utilities use several images. However, the images that you need depend on the type of storage that you are using and what method you are using to perform the backup and restore.
+
+ose-cli
+
+    This image is required for all backup and restore scenarios.
+
+    Supported hardware
+
+            x86_64
+            ppc64le
+            s390x
+
+    Obtaining the image
+        You must manually mirror the ose-cli image to your private container registry.
+
+ubi-minimal
+
+    This image is required for all backup and restore scenarios.
+
+    Supported hardware
+
+            x86_64
+            ppc64le
+            s390x
+
+    Obtaining the image
+        You must manually mirror the ubi-minimal image to your private container registry.
+
+cpdbr-velero-plugin
+
+    This image is required for all backup and restore scenarios.
+
+    Supported hardware
+
+            x86_64
+            ppc64le
+            s390x
+
+    Obtaining the image
+        This image is automatically mirrored when you mirror the IBM Software Hub (cpd_platform) images.
+
+cpdbr-oadp
+
+    This image is required for all backup and restore scenarios.
+
+    Supported hardware
+
+            x86_64
+            ppc64le
+            s390x
+
+    Obtaining the image
+        This image is automatically mirrored when you mirror the IBM Software Hub (cpd_platform) images.
+
+cpdbr-api
+
+    This image is required only if you are using OpenShift API for Data Protection to back up IBM Software Hub deployments using REST API calls.
+
+    Supported hardware
+
+            x86_64
+            ppc64le
+            s390x
+
+    Obtaining the image
+        This image is automatically mirrored when you mirror the IBM Software Hub (cpd_platform) images.
+
+Mirroring the ose-cli and ubi-minimal images to the private container registry
+If you plan to use the cpd-cli oadp commands, you must mirror the following images to your private container registry:
+
+    ose-cli
+    ubi-minimal
+
+The steps that you must complete depend on whether the workstation can connect to both the internet and the private container registry at the same time:
+The workstation can connect to the internet and to the private container registry
+
+The workstation cannot connect to the private container registry at the same time
+
+3. Installing IBM Software Hub OADP backup and restore utility components
+
+Install the components that the OADP backup and restore utility uses.
+The IBM Software Hub OADP backup and restore utility uses the following components:
+
+OADP, Velero, and its default plug-ins
+    OADP, Velero, and the default openshift-velero-plugin are open source projects that are used to back up Kubernetes resources and data volumes on Red Hat OpenShift. 
+Custom Velero plug-in cpdbr-velero-plugin
+    The custom cpdbr-velero-plugin implements more Velero backup and restore actions for OpenShift-specific resource handling. 
+cpd-cli oadp command-line interface
+    This CLI is part of the cpd-cli utility.
+
+    cpd-cli oadp is used for backup and restore operations by calling Velero client APIs, similar to the velero CLI. In addition, cpd-cli oadp invokes backup and restore hooks, pre-actions and post-actions, and manages dependencies and prioritization across the IBM Software Hub services to ensure the correctness of sophisticated, stateful apps.
+cpdbr-tenant service
+
+    The cpdbr-tenant service contains scripts that back up and restore an IBM Software Hub instance.
+
+Supported cluster hardware
+    cpdbr-velero-plugin and OADP are supported on:
+
+        x86-64 hardware
+        ppc64le hardware
+        s390x hardware
+
+Supported versions of OADP
+    IBM Software Hub supports the following OADP versions:
+    OpenShift Container Platform Version
+    	
+    OADP Version
+    Version 4.12	Version 1.3
+    Version 4.14 to Version 4.18	Version 1.4
+
+    For the latest support information, see Currently Supported Version of OADP in the Red Hat documentation.
+
+In addition to the IBM Software Hub OADP backup and restore utility, you must also install OADP if you plan to use NetApp Astra Control Center or Portworx to back up and restore IBM Software Hub.
+
+If you plan to use NetApp Astra Control Center, it is recommended that you use the same S3 object store that is specified in the NetApp Astra Control Center backup storage location as the OADP backup storage location.
+3.1 Setting up object storage
+
+An S3-compatible object storage that uses Signature Version 4 is needed to store the backups. A bucket must be created in object storage. The IBM Software Hub OADP backup and restore utility supports the following S3-compatible object storage:
+
+    AWS S3
+    IBM Cloud Object Storage
+    MinIO
+    Ceph® Object Gateway
+
+Note: NetApp ONTAP S3 is not supported.
+
+To set up object storage, consult the documentation of the object storage that you are using.
+3.2 Creating environment variables
+
+Create the following environment variables so that you can copy commands from the documentation and run them without making any changes.
+Environment variable
+	
+Description
+OC_LOGIN	Shortcut for the oc login command.
+PROJECT_CPD_INST_OPERATORS	The project (namespace) where the IBM Software Hub instance operators are installed.
+PROJECT_SCHEDULING_SERVICE	The project where the scheduling service is installed.
+
+This environment variable is needed only when the scheduling service is installed.
+PRIVATE_REGISTRY_LOCATION	If your cluster is in a restricted network, the private container registry where backup and restore images are mirrored.
+OADP_PROJECT	The project where you want to install the OADP operator.
+Tip: The default project is openshift-adp.
+ACCESS_KEY_ID	The access key ID to access the object store.
+Note:
+
+If you are using IBM Cloud Object Storage, the access key ID and secret service key are obtained from HMAC credentials that are generated for the service credential. The access key ID and the secret access key are located under cos_hmac_keys in the service credential. For more information about creating service credentials and generating HMAC credentials, see Service credentials in the IBM Cloud Object Storage documentation. The service ID must also have Writer access to the bucket. For more information, see Assigning access to an individual bucket.
+SECRET_ACCESS_KEY	The access key secret to access the object store.
+VERSION	The IBM Software Hub version. For example, 5.1.0.
+CPDBR_VELERO_PLUGIN_IMAGE_LOCATION	The custom Velero plug-in cpdbr-velero-plugin image location.
+
+If the cluster has access to the IBM Entitled Registry, specify one of the following values:
+
+IBM Software Hub 5.1.0
+
+        x86-64 systems: icr.io/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-x86_64
+        ppc64le systems: icr.io/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-ppc64le
+        s390x systems: icr.io/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-s390x
+
+IBM Software Hub 5.1.1 and later
+    All systems: icr.io/cpopen/cpd/cpdbr-velero-plugin:${VERSION}
+
+If the cluster is in a restricted network and images are stored in a private container registry, specify one of the following values:
+
+IBM Software Hub 5.1.0
+
+        x86-64 systems: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-x86_64
+        ppc64le systems: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-ppc64le
+        s390x systems: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/cpdbr-velero-plugin:${VERSION}-s390x
+
+IBM Software Hub 5.1.1 and later
+    All systems: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/cpdbr-velero-plugin:${VERSION}
+
+VELERO_POD_CPU_LIMIT	The CPU limit for the Velero pod. A value of 0 indicates unbounded.
+NODE_AGENT_POD_CPU_LIMIT	The CPU limit for the node-agent pod. A value of 0 indicates unbounded.
+S3_URL	The URL of the object store that you are using to store backups.
+Notes:
+
+    Omit any default ports from the variable (:80 for http, :443 for https).
+
+    If the object store is Amazon S3, you do not need to set this variable.
+    If the object store is IBM Cloud Object Storage, specify the public endpoint of the instance. For example:
+
+    https://s3.us-south.cloud-object-storage.appdomain.cloud
+
+    where us-south is the region. You can find the public endpoint under Bucket > Configuration > Endpoints.
+
+    If the object store is MinIO, you can get the s3url by running oc get route -n <minio namespace>.
+
+BUCKET_NAME	The object storage bucket name.
+BUCKET_PREFIX	The bucket prefix. Backup files are stored under bucket/prefix.
+REGION	The object store region.
+3.3 Installing backup and restore components on a Red Hat OpenShift Container Platform cluster
+
+If IBM Software Hub is deployed on a Red Hat OpenShift Container Platform cluster, install backup and restore components by doing the following steps.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Create the ${OADP_PROJECT} project where you want to install the OADP operator.
+    Annotate the ${OADP_PROJECT} project so that Restic pods can be scheduled on all nodes.
+
+    oc annotate namespace ${OADP_PROJECT} openshift.io/node-selector=""
+
+    Install the cpdbr-tenant service.
+
+    The cluster pulls images from the IBM Entitled Registry
+
+        cpd-cli oadp install \
+        --component=cpdbr-tenant \
+        --namespace ${OADP_PROJECT} \
+        --tenant-operator-namespace ${PROJECT_CPD_INST_OPERATORS} \
+        --skip-recipes \
+        --log-level=debug \
+        --verbose
+
+    The cluster pulls images from a private container registry
+
+        cpd-cli oadp install \
+        --component=cpdbr-tenant \
+        --namespace ${OADP_PROJECT} \
+        --tenant-operator-namespace ${PROJECT_CPD_INST_OPERATORS} \
+        --cpdbr-hooks-image-prefix=${PRIVATE_REGISTRY}/cpdbr-oadp:${VERSION} \
+        --cpfs-image-prefix=${PRIVATE_REGISTRY} \
+        --skip-recipes \
+        --log-level=debug \
+        --verbose
+
+    Install the Red Hat OADP operator.
+        To install operators in a cluster with Internet access, see the Red Hat documentation Adding Operators to a cluster.
+        To install operators in a cluster that is in a restricted network, see the Red Hat documentation Using Operator Lifecycle Manager on restricted networks.
+    Create a secret in the ${OADP_PROJECT} project with the credentials of the S3-compatible object store that you are using to store the backups.
+
+    Credentials must use alphanumeric characters and cannot contain special characters like the number sign (#).
+        Create a file named credentials-velero that contains the credentials for the object store:
+
+        cat << EOF > credentials-velero
+        [default]
+        aws_access_key_id=${ACCESS_KEY_ID}
+        aws_secret_access_key=${SECRET_ACCESS_KEY}
+        EOF
+
+        Create the secret.
+
+        The name of the secret must be cloud-credentials.
+
+        oc create secret generic cloud-credentials \
+        --namespace ${OADP_PROJECT} \
+        --from-file cloud=./credentials-velero
+
+    Create the DataProtectionApplication (DPA) custom resource, and specify a name for the instance.
+    Tip: You can create the DPA custom resource manually or by using the cpd-cli oadp dpa create command. However, if you use this command, you might need to edit the custom resource afterward to add options that are not available with the command. This step shows you how to manually create the custom resource.
+    You might need to change some values.
+        spec.configuration.restic.memory specifies the Restic memory limit. You might need to increase the Restic memory limit if Restic volume backups fail or hang on a large volume, indicated by Restic pod containers restarting due to an OOMKilled Kubernetes error.
+        If the object store is Amazon S3, you can omit s3ForcePathStyle.
+        For object stores with a self-signed certificate, add backupLocations.velero.objectStorage.caCert and specify the base64 encoded certificate string as the value. For more information, see Use Self-Signed Certificate.
+    Important:
+        spec.configuration.nodeAgent.timeout specifies the Restic timeout. The default is 1 hour. You might need to increase the Restic timeout if Restic backup or restore fails, indicated by pod volume timeout errors in the Velero log.
+        If only Restic backups are needed, under spec.configuration.velero.defaultPlugins, remove csi.
+
+    Recommended DPA configuration
+        The following example shows the recommended DPA configuration.
+
+        cat << EOF | oc apply -f -
+        apiVersion: oadp.openshift.io/v1alpha1
+        kind: DataProtectionApplication
+        metadata:
+          name: dpa-sample
+        spec:
+          configuration:
+            velero:
+              customPlugins:
+              - image: ${CPDBR_VELERO_PLUGIN_IMAGE_LOCATION}
+                name: cpdbr-velero-plugin
+              defaultPlugins:
+              - aws
+              - openshift
+              - csi
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${VELERO_POD_CPU_LIMIT}"
+                    memory: 4Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              resourceTimeout: 60m
+            nodeAgent:
+              enable: true
+              uploaderType: restic
+              timeout: 72h
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${NODE_AGENT_POD_CPU_LIMIT}"
+                    memory: 32Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+                tolerations:
+                - key: icp4data
+                  operator: Exists
+                  effect: NoSchedule
+          backupImages: false
+          backupLocations:
+            - velero:
+                provider: aws
+                default: true
+                objectStorage:
+                  bucket: ${BUCKET_NAME}
+                  prefix: ${BUCKET_PREFIX}
+                config:
+                  region: ${REGION}
+                  s3ForcePathStyle: "true"
+                  s3Url: ${S3_URL}
+                credential:
+                  name: cloud-credentials
+                  key: cloud
+        EOF
+
+    5.1.0-5.1.2 DPA configuration if watsonx™ Orchestrate is installed
+        If your IBM Software Hub deployment includes watsonx Orchestrate, add the appcon-plugin to the DPA configuration. To obtain the link to the appcon-plugin image, see Backing up and restoring your IBM App Connect resources and persistent volumes on Red Hat OpenShift.
+
+        cat << EOF | oc apply -f -
+        apiVersion: oadp.openshift.io/v1alpha1
+        kind: DataProtectionApplication
+        metadata:
+          name: dpa-sample
+        spec:
+          configuration:
+            velero:
+              customPlugins:
+              - image: ${CPDBR_VELERO_PLUGIN_IMAGE_LOCATION}
+                name: cpdbr-velero-plugin
+              - image: '<appcon-plugin-image-link>'
+                name: appcon-plugin
+              defaultPlugins:
+              - aws
+              - openshift
+              - csi
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${VELERO_POD_CPU_LIMIT}"
+                    memory: 4Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              resourceTimeout: 60m
+            nodeAgent:
+              enable: true
+              uploaderType: restic
+              timeout: 72h
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${NODE_AGENT_POD_CPU_LIMIT}"
+                    memory: 32Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+                tolerations:
+                - key: icp4data
+                  operator: Exists
+                  effect: NoSchedule
+          backupImages: false
+          backupLocations:
+            - velero:
+                provider: aws
+                default: true
+                objectStorage:
+                  bucket: ${BUCKET_NAME}
+                  prefix: ${BUCKET_PREFIX}
+                config:
+                  region: ${REGION}
+                  s3ForcePathStyle: "true"
+                  s3Url: ${S3_URL}
+                credential:
+                  name: cloud-credentials
+                  key: cloud
+        EOF
+
+    After you create the DPA, do the following checks.
+        Check that the velero pods are running in the ${OADP_PROJECT} project.
+
+        oc get po -n ${OADP_PROJECT}
+
+        The node-agent daemonset creates one node-agent pod for each worker node. For example:
+
+        NAME                                                    READY   STATUS    RESTARTS   AGE
+        openshift-adp-controller-manager-678f6998bf-fnv8p       2/2     Running   0          55m
+        node-agent-455wd                                        1/1     Running   0          49m
+        node-agent-5g4n8                                        1/1     Running   0          49m
+        node-agent-6z9v2                                        1/1     Running   0          49m
+        node-agent-722x8                                        1/1     Running   0          49m
+        node-agent-c8qh4                                        1/1     Running   0          49m
+        node-agent-lcqqg                                        1/1     Running   0          49m
+        node-agent-v6gbj                                        1/1     Running   0          49m
+        node-agent-xb9j8                                        1/1     Running   0          49m
+        node-agent-zjngp                                        1/1     Running   0          49m
+        velero-7d847d5bb7-zm6vd                                 1/1     Running   0          49m
+
+        Verify that the backup storage location PHASE is Available.
+
+        cpd-cli oadp backup-location list
+
+        Example output:
+
+        NAME           PROVIDER    BUCKET             PREFIX              PHASE        LAST VALIDATED      ACCESS MODE
+        dpa-sample-1   aws         ${BUCKET_NAME}     ${BUCKET_PREFIX}    Available    <timestamp>
+
+3.4 Installing backup and restore components on a Red Hat OpenShift Service on AWS (ROSA) cluster with Security Token Service (STS)
+
+If IBM Software Hub is deployed on a ROSA cluster with STS, install backup and restore components by doing the following steps.
+Important: IBM Software Hub deployed on a ROSA cluster supports only online backup and restore to the same cluster.
+
+    Install the AWS CLI and the ROSA CLI.
+
+    For details, see the Installing and configuring the required CLI tools section in the Red Hat OpenShift Service on AWS documentation.
+    Generate a token in the AWS console.
+    Log in to the ROSA cluster:
+
+    rosa login --token=<token>
+
+    Prepare AWS STS credentials for OADP.
+        Create the CLUSTER_NAME environment variable and set it to the name of the ROSA cluster.
+
+        export CLUSTER_NAME=<ROSA_cluster_name>
+
+        Create the following environment variables and directory:
+
+        export ROSA_CLUSTER_ID=$(rosa describe cluster -c ${CLUSTER_NAME} --output json | jq -r .id)
+        export REGION=$(rosa describe cluster -c ${CLUSTER_NAME} --output json | jq -r .region.id)
+        export OIDC_ENDPOINT=$(oc get authentication.config.openshift.io cluster -o jsonpath='{.spec.serviceAccountIssuer}' | sed 's|^https://||')
+        export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        export CLUSTER_VERSION=$(rosa describe cluster -c ${CLUSTER_NAME} -o json | jq -r .version.raw_id | cut -f -2 -d '.')
+        export ROLE_NAME="${CLUSTER_NAME}-openshift-oadp-aws-cloud-credentials"
+        export SCRATCH="/tmp/${CLUSTER_NAME}/oadp"
+        mkdir -p ${SCRATCH}
+        echo "Cluster ID: ${ROSA_CLUSTER_ID}, Region: ${REGION}, OIDC Endpoint:
+        ${OIDC_ENDPOINT}, AWS Account ID: ${AWS_ACCOUNT_ID}"
+
+        On the AWS account, create an Identity Management Service (IAM) policy to allow access to AWS S3.
+            Check if the policy already exists.
+
+            In the following command, replace RosaOadp with your policy name.
+
+            POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='RosaOadpVer1'].{ARN:Arn}" --output text) 
+
+            Create the policy JSON file and then create the policy in ROSA:
+
+            if [[ -z "${POLICY_ARN}" ]]; then
+              cat << EOF > ${SCRATCH}/policy.json 
+              {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:CreateBucket",
+                    "s3:DeleteBucket",
+                    "s3:PutBucketTagging",
+                    "s3:GetBucketTagging",
+                    "s3:PutEncryptionConfiguration",
+                    "s3:GetEncryptionConfiguration",
+                    "s3:PutLifecycleConfiguration",
+                    "s3:GetLifecycleConfiguration",
+                    "s3:GetBucketLocation",
+                    "s3:ListBucket",
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucketMultipartUploads",
+                    "s3:AbortMultipartUploads",
+                    "s3:ListMultipartUploadParts",
+                    "s3:DescribeSnapshots",
+                    "ec2:DescribeVolumes",
+                    "ec2:DescribeVolumeAttribute",
+                    "ec2:DescribeVolumesModifications",
+                    "ec2:DescribeVolumeStatus",
+                    "ec2:CreateTags",
+                    "ec2:CreateVolume",
+                    "ec2:CreateSnapshot",
+                    "ec2:DeleteSnapshot"
+                  ],
+                  "Resource": "*"
+                }
+               ]}
+            EOF
+
+              POLICY_ARN=$(aws iam create-policy --policy-name "RosaOadpVer1" \
+              --policy-document file:///${SCRATCH}/policy.json --query Policy.Arn \
+              --tags Key=rosa_openshift_version,Value=${CLUSTER_VERSION} Key=rosa_role_prefix,Value=ManagedOpenShift Key=operator_namespace,Value=openshift-oadp Key=operator_name,Value=openshift-oadp \
+              --output text)
+              fi
+
+            To view the policy ARN, run the following command:
+
+            echo ${POLICY_ARN}
+
+        Create an IAM role trust policy for the cluster:
+            Create the trust policy file:
+
+            cat <<EOF > ${SCRATCH}/trust-policy.json
+              {
+                  "Version":2012-10-17",
+                  "Statement": [{
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Federated": "arn:aws:iam::${AWS_ACCOUNT_ID}:oidc-provider/${OIDC_ENDPOINT}"
+                    },
+                    "Action": "sts:AssumeRoleWithWebIdentity",
+                    "Condition": {
+                      "StringEquals": {
+                        "${OIDC_ENDPOINT}:sub": [
+                          "system:serviceaccount:openshift-adp:openshift-adp-controller-manager",
+                          "system:serviceaccount:openshift-adp:velero"]
+                      }
+                    }
+                  }]
+              }
+            EOF
+
+            Create the role:
+
+            ROLE_ARN=$(aws iam create-role --role-name "${ROLE_NAME}" --assume-role-policy-document file://${SCRATCH}/trust-policy.json --tags Key=rosa_cluster_id,Value=${ROSA_CLUSTER_ID} Key=rosa_openshift_version,Value=${CLUSTER_VERSION} Key=rosa_role_prefix,Value=ManagedOpenShift Key=operator_namespace,Value=openshift-adp Key=operator_name,Value=${OADP_PROJECT} --query Role.Arn --output text)
+
+            To view the role ARN, run the following command:
+
+            echo ${ROLE_ARN}
+
+        Attach the IAM policy to the IAM role:
+
+        aws iam attach-role-policy \
+        --role-name "${ROLE_NAME}" \
+        --policy-arn ${POLICY_ARN}
+
+    Create an OpenShift secret from your AWS token file.
+        Create the credentials file:
+
+        cat <<EOF > ${SCRATCH}/credentials
+          [default]
+          role_arn = ${ROLE_ARN}
+          web_identity_token_file = /var/run/secrets/openshift/serviceaccount/token
+          region=${REGION}
+        EOF
+
+        Create the project where you want to install the OADP operator:
+
+        oc create namespace ${OADP_PROJECT}
+
+        If your IBM Software Hub deployment is installed on OpenShift version 4.14 or earlier, create the OpenShift secret:
+
+        oc -n ${OADP_PROJECT} create secret generic cloud-credentials --from-file=${SCRATCH}/credentials
+
+        Tip: In OpenShift 4.14 and later, you do not need to create this secret. Instead, you provide the role ARN when you install the OADP operator in the following step.
+    Install the OADP operator.
+    Important: Install OADP 1.4.1 or later.
+        To install operators in a cluster with Internet access, see the Red Hat documentation Adding Operators to a cluster.
+        To install operators in a cluster that is in a restricted network, see the Red Hat documentation Using Operator Lifecycle Manager on restricted networks.
+    Note: If you install the operator from the OpenShift web console, paste the role ARN that you previously created in the role_ARN field. If you install the operator from the OpenShift CLI, include the following fields in the Subscription object:
+
+    kind: Subscription
+    # ...
+    spec:
+      installPlanApproval: Manual 
+      config:
+        env:
+        - name: ROLEARN
+          value: "<role_arn>" 
+
+    With your AWS credentials, create AWS storage:
+
+    cat << EOF | oc create -f -
+      apiVersion: oadp.openshift.io/v1alpha1
+      kind: CloudStorage
+      metadata:
+        name: ${CLUSTER_NAME}-oadp
+        namespace: openshift-adp
+      spec:
+        creationSecret:
+          key: credentials
+          name: cloud-credentials
+        enableSharedConfig: true
+        name: ${CLUSTER_NAME}-oadp
+        provider: aws
+        region: $REGION
+    EOF
+
+    Check the storage default storage class that is used by IBM Software Hub:
+
+    oc get pvc -n ${PROJECT_CPD_INST_OPERANDS}
+
+    Example output:
+
+    zen-metastore-edb-1    Bound pvc-<...>   10Gi   RWO   gp3-csi   <unset>   4d18h
+    zen-metastore-edb-2    Bound pvc-<...>   10Gi   RWO   gp3-csi   <unset>   4d18h
+
+    The
+    gb2-csi and gb3-csi storage classes are supported.
+    Get the storage class:
+
+    oc get storageclass
+
+    Example output:
+
+    NAME      PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+    gp2-csi   ebs.csi.aws.com   Delete          WaitForFirstConsumer   true                   15d
+    gp3-csi   ebs.csi.aws.com   Delete          WaitForFirstConsumer   true                   15d
+
+    Create the DataProtectionApplication (DPA) custom resource.
+
+    Recommended DPA configuration for creating online backups
+        The following example shows the recommended DPA configuration for creating online backups:
+
+        cat << EOF | oc apply -f -
+        apiVersion: oadp.openshift.io/v1alpha1
+        kind: DataProtectionApplication
+        metadata:
+          name: ${CLUSTER_NAME}-dpa
+          namespace: ${OADP_PROJECT}
+        spec: 
+          configuration:
+            velero:
+              customPlugins:
+              - image: ${CPDBR_VELERO_PLUGIN_IMAGE_LOCATION}
+                name: cpdbr-velero-plugin
+              defaultPlugins:
+              - aws
+              - openshift
+              - csi
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${VELERO_POD_CPU_LIMIT}"
+                    memory: 4Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              resourceTimeout: 60m
+            nodeAgent:
+              enable: false
+              uploaderType: restic
+              timeout: 72h
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${NODE_AGENT_POD_CPU_LIMIT}"
+                    memory: 32Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+                tolerations:
+                - key: icp4data
+                  operator: Exists
+                  effect: NoSchedule
+          backupImages: false
+          backupLocations:
+          - bucket:
+              cloudStorageRef:
+                name: ${CLUSTER_NAME}-oadp
+              credential:
+                key: credentials
+                name: cloud-credentials
+              prefix: velero
+              default: true
+              config:
+                region: ${REGION}
+        EOF
+
+    DPA configuration for creating online backups if watsonx Orchestrate is installed
+        If your IBM Software Hub deployment includes watsonx Orchestrate, add the appcon-plugin to the DPA configuration. To obtain the link to the appcon-plugin image, see Backing up and restoring your IBM App Connect resources and persistent volumes on Red Hat OpenShift.
+
+        cat << EOF | oc apply -f -
+        apiVersion: oadp.openshift.io/v1alpha1
+        kind: DataProtectionApplication
+        metadata:
+          name: ${CLUSTER_NAME}-dpa
+          namespace: ${OADP_PROJECT}
+        spec: 
+          configuration:
+            velero:
+              customPlugins:
+              - image: ${CPDBR_VELERO_PLUGIN_IMAGE_LOCATION}
+                name: cpdbr-velero-plugin
+              - image: '<appcon-plugin-image-link>'
+                name: appcon-plugin
+              defaultPlugins:
+              - aws
+              - openshift
+              - csi
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${VELERO_POD_CPU_LIMIT}"
+                    memory: 4Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+              resourceTimeout: 60m
+            nodeAgent:
+              enable: false
+              uploaderType: restic
+              timeout: 72h
+              podConfig:
+                resourceAllocations:
+                  limits:
+                    cpu: "${NODE_AGENT_POD_CPU_LIMIT}"
+                    memory: 32Gi
+                  requests:
+                    cpu: 500m
+                    memory: 256Mi
+                tolerations:
+                - key: icp4data
+                  operator: Exists
+                  effect: NoSchedule
+          backupImages: false
+          backupLocations:
+          - bucket:
+              cloudStorageRef:
+                name: ${CLUSTER_NAME}-oadp
+              credential:
+                key: credentials
+                name: cloud-credentials
+              prefix: velero
+              default: true
+              config:
+                region: ${REGION}
+        EOF
+
+    After you create the DPA, do the following checks.
+        For secrets to take effect when you create offline backups, edit the DaemonSet and add the following configuration:
+
+        oc edit DaemonSet node-agent -n ${OADP_PROJECT}
+
+        spec:
+            spec:
+              containers:
+              - args:
+                volumeMounts:
+                - mountPath: /var/run/secrets/openshift/serviceaccount
+                  name: bound-sa-token
+              .
+              .
+              volumes:
+              - name: bound-sa-token
+                projected:
+                  defaultMode: 420
+                  sources:
+                  - serviceAccountToken:
+                      audience: openshift
+                      expirationSeconds: 3600
+                      path: token
+
+        Check that the velero pods are running in the ${OADP_PROJECT} project.
+
+        oc get po -n ${OADP_PROJECT}
+
+        The node-agent daemonset creates one node-agent pod for each worker node. For example:
+
+        NAME                                                    READY   STATUS    RESTARTS   AGE
+        openshift-adp-controller-manager-678f6998bf-fnv8p       2/2     Running   0          55m
+        node-agent-455wd                                        1/1     Running   0          49m
+        node-agent-5g4n8                                        1/1     Running   0          49m
+        node-agent-6z9v2                                        1/1     Running   0          49m
+        node-agent-722x8                                        1/1     Running   0          49m
+        node-agent-c8qh4                                        1/1     Running   0          49m
+        node-agent-lcqqg                                        1/1     Running   0          49m
+        node-agent-v6gbj                                        1/1     Running   0          49m
+        node-agent-xb9j8                                        1/1     Running   0          49m
+        node-agent-zjngp                                        1/1     Running   0          49m
+        velero-7d847d5bb7-zm6vd                                 1/1     Running   0          49m
+
+        Verify that the backup storage location PHASE is Available.
+
+        cpd-cli oadp backup-location list
+
+        Example output:
+
+        NAME           PROVIDER    BUCKET             PREFIX              PHASE        LAST VALIDATED      ACCESS MODE
+        dpa-sample-1   aws         ${BUCKET_NAME}     ${BUCKET_PREFIX}    Available    <timestamp>
+
+    If your IBM Software Hub installation is on a multi-AZ OpenShift environment, create the CPDBR_MAX_NODE_LIMITED_VOLUMES_PER_POD environment variable prior to taking a backup:
+
+    export CPDBR_MAX_NODE_LIMITED_VOLUMES_PER_POD=1
+
+    Tip: For more information about this environment variable, see Offline backup fails due to cpdbr-vol-mnt pod stuck in Pending state.
+
+3.5 Installing the OADP backup REST service
+
+Install the OADP backup REST service so that you can create backups without having to log in to the cluster.
+Notes:
+
+    The OADP backup REST service must be installed and deployed in its own project for each IBM Software Hub instance.
+
+    If a new version of the IBM Software Hub OADP backup and restore utility is installed, you must reinstall the OADP backup REST service.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    In each IBM Software Hub instance that you want to install the OADP backup REST service, create a new project for the service.
+    Remember: This project must be a different project than the project where the IBM Software Hub software operators are installed.
+
+    CPDBRAPI_NAMESPACE=${PROJECT_CPD_INST_OPERANDS}-cpdbrapi
+    oc new-project $CPDBRAPI_NAMESPACE
+
+    In the $CPDBRAPI_NAMESPACE project, set configuration values that are needed to install the REST server:
+
+    cpd-cli oadp client config set namespace=$OADP_PROJECT
+    cpd-cli oadp client config set cpd-namespace=${PROJECT_CPD_INST_OPERANDS}
+    cpd-cli oadp client config set cpdops-namespace=$CPDBRAPI_NAMESPACE
+
+    Optional: Specify a custom TLS certificate for HTTPS connections to the REST server.
+
+    The IBM Software Hub OADP backup REST service includes a self-signed TLS certificate that can be used to enable HTTPS connections. By default, this certificate is untrusted by all HTTPS clients. You can replace the default certificate with your own TLS certificate.
+
+    Your certificate and private key file must meet the following requirements:
+        Both files are in Privacy Enhanced Mail (PEM) format.
+        The certificate is named cert.crt.
+        The certificate can be a bundle that contains your server, intermediates, and root certificates concatenated (in the proper order) into one file. The necessary certificates must be enabled as trusted certificates on the clients that connect to the cluster.
+        The private key is named cert.key.
+
+    In the $CPDBRAPI_NAMESPACE project, create a secret with the name cpdbr-api-custom-tls-secrets:
+
+    oc create secret generic \
+    --namespace $CPDBRAPI_NAMESPACE cpdbr-api-custom-tls-secrets \
+    --from-file=cert.crt=./cert.crt \
+    --from-file=cert.key=./cert.key \
+    --dry-run -o yaml | oc apply -f -
+
+    Install the REST server.
+        If your cluster has internet access, run the following command:
+
+        # clusters that has internet access
+        cpd-cli oadp install \
+        --image-prefix=icr.io/cpopen/cpd \
+        --log-level=debug
+
+        If your cluster uses a private container registry, run the following command:
+
+        # for air gapped clusters
+        cpd-cli oadp install \
+        --image-prefix=${PRIVATE_REGISTRY_LOCATION} \
+        --log-level=debug
+
+    Configure the REST client.
+        If you are not in the IBM Software Hub instance project, switch to that project:
+
+        oc project ${PROJECT_CPD_INST_OPERANDS}
+
+        Obtain the values for the CPD_URL, CPDBR_API_URL, and CPD_API_KEY environment variables.
+
+        CPD_API_KEY is a platform API key. To learn how to obtain the appropriate API key, see Generating API keys.
+
+        # On the cluster
+        CPD_NAMESPACE=${PROJECT_CPD_INST_OPERANDS}
+        echo $CPD_NAMESPACE
+        CPD_URL=`oc get route -n $CPD_NAMESPACE | grep ibm-nginx-svc | awk '{print $2}'`
+        echo "cpd control plane url: $CPD_URL"
+
+        # The cpdbr-api (the backup REST service) has its own OpenShift route.
+        # It can be retrieved from the Cloud Pak for Data control-plane namespace
+        CPDBR_API_URL=`oc get route -n $CPDBRAPI_NAMESPACE | grep cpdbr-api | awk '{print $2}'`
+        echo "cpdbr-api url: $CPDBR_API_URL"
+
+        # The Cloud Pak for Data admin API key (retrieve from Cloud Pak for Data console's user profile page)
+        CPD_API_KEY=xxxxxxxx
+
+        Set the configuration values on the REST client, replacing CPD_URL, CPDBR_API_URL, and CPD_API_KEY in the following commands with the values obtained in the previous step:
+
+        # On the client
+        cpd-cli oadp client config set runtime-mode=rest-client
+        cpd-cli oadp client config set userid=cpadmin
+        cpd-cli oadp client config set apikey=$CPD_API_KEY
+        cpd-cli oadp client config set cpd-route=$CPD_URL
+        cpd-cli oadp client config set cpd-insecure-skip-tls-verify=true
+        cpd-cli oadp client config set cpdbr-api-route=$CPDBR_API_URL
+        cpd-cli oadp client config set cpdbr-api-insecure-skip-tls-verify=true
+        cpd-cli oadp client config set namespace=$OADP_NAMESPACE
+        cpd-cli oadp client config set cpd-namespace=${PROJECT_CPD_INST_OPERANDS}
+        cpd-cli oadp client config set cpdops-namespace=$CPDBRAPI_NAMESPACE 
+
+    Optional: If you are using a custom TLS certificate, more REST client configuration is needed. Run the following commands:
+
+    cpd-cli oadp client config set cpd-tls-ca-file=<cacert file>
+    cpd-cli oadp client config set cpd-insecure-skip-tls-verify=false
+    cpd-cli oadp client config set cpdbr-api-tls-ca-file=<cacert file>
+    cpd-cli oadp client config set cpdbr-api-insecure-skip-tls-verify=false
+
+When the REST client and server are configured, cpd-cli oadp backup and checkpoint commands use REST APIs.
+4. Installing the jq JSON command-line utility
+
+An IBM Software Hub OADP backup and restore utility script, cpd-operators.sh, and some backup and restore commands, require the jq JSON command-line utility.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Download and validate the utility.
+        For x86_64 hardware, run the following commands:
+
+        wget -O jq https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
+
+        chmod +x ./jq
+
+        cp jq /usr/local/bin
+
+        For ppc64le hardware, run the following commands:
+
+        wget -O jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-ppc64el
+
+        chmod +x ./jq
+
+        cp jq /usr/local/bin
+
+5. Configuring the OADP backup and restore utility
+
+Configure the IBM Software Hub OADP backup and restore utility before you create backups.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Update the permissions on cpd-cli to enable execute:
+
+     chmod +x cpd-cli
+
+    Configure the client to set the OADP project:
+
+    cpd-cli oadp client config set namespace=${OADP_PROJECT}
+
+    To configure the backup and restore utility for air-gapped environments, do the following steps:
+        Ensure that your HTTP or HTTPS proxy server is running.
+        Set the environment variable for your proxy server:
+            If you are using an HTTP proxy, use the following commands to set the HTTP_PROXY environment variable and unset the other environment variable:
+
+            export HTTP_PROXY=<HTTP_PROXY_SERVER_URL>
+            export http_proxy=$HTTP_PROXY
+
+            unset HTTPS_PROXY
+            unset https_proxy
+
+            If you are using an HTTPS proxy, use the following commands to set the HTTPS_PROXY environment variable and unset the other environment variable:
+
+            export HTTPS_PROXY=<HTTPS_PROXY_SERVER_URL>
+            export https_proxy=$HTTPS_PROXY
+
+            unset HTTP_PROXY
+            unset http_proxy
+
+        Update the DataProtectionAppplication custom resource by adding configuration.velero.podConfig.env.
+        For example:
+
+        configuration:
+          velero:
+          ....
+            podConfig:
+              env:
+              - name: HTTP_PROXY
+                value:  ${HTTP_PROXY}
+
+        Confirm that the Velero deployment and pod have the same environment variable.
+
+6. Creating volume snapshot classes on the source cluster
+Before you can create Container Storage Interface (CSI) snapshots, you must create one or more volume snapshot classes, depending on the storage that you are using.
+Note: The default VolumeSnapshotClass has by default deletionPolicy set to Delete. Creating new VolumeSnapshotClasses with a Retain deletion policy is recommended to ensure that the underlying snapshot and VolumeSnapshotContent object remain intact, as protection against accidental or unintended deletion. For more information, see Deleting a volume snapshot in the Red Hat OpenShift documentation.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    If you are backing up IBM Software Hub on Red Hat OpenShift Data Foundation storage, create the following volume snapshot classes:
+
+    cat << EOF | oc apply -f -
+    apiVersion: snapshot.storage.k8s.io/v1
+    deletionPolicy: Retain 
+    driver: openshift-storage.rbd.csi.ceph.com 
+    kind: VolumeSnapshotClass 
+    metadata: 
+      name: ocs-storagecluster-rbdplugin-snapclass-velero 
+      labels: 
+        velero.io/csi-volumesnapshot-class: "true" 
+    parameters: 
+      clusterID: openshift-storage 
+      csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner 
+      csi.storage.k8s.io/snapshotter-secret-namespace: openshift-storage
+    EOF
+
+    cat << EOF | oc apply -f -
+    apiVersion: snapshot.storage.k8s.io/v1
+    deletionPolicy: Retain 
+    driver: openshift-storage.cephfs.csi.ceph.com 
+    kind: VolumeSnapshotClass 
+    metadata: 
+      name: ocs-storagecluster-cephfsplugin-snapclass-velero 
+      labels: 
+        velero.io/csi-volumesnapshot-class: "true" 
+    parameters: 
+      clusterID: openshift-storage 
+      csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner 
+      csi.storage.k8s.io/snapshotter-secret-namespace: openshift-storage
+    EOF
+
+    If you are backing up IBM Software Hub on IBM Storage Scale storage, create the following volume snapshot class:
+
+    cat << EOF | oc apply -f -
+    apiVersion: snapshot.storage.k8s.io/v1
+    deletionPolicy: Retain
+    driver: spectrumscale.csi.ibm.com
+    kind: VolumeSnapshotClass
+    metadata:
+      name: ibm-spectrum-scale-snapshot-class
+      labels:
+        velero.io/csi-volumesnapshot-class: "true"
+    EOF
+
+    If you are backing up IBM Software Hub on Portworx storage, create the following volume snapshot class:
+
+    cat << EOF | oc apply -f -
+    apiVersion: snapshot.storage.k8s.io/v1
+    deletionPolicy: Retain
+    driver: pxd.portworx.com
+    kind: VolumeSnapshotClass
+    metadata:
+      name: px-csi-snapclass-velero
+      labels:
+        velero.io/csi-volumesnapshot-class: "true"
+    EOF
+
+    If you are backing up IBM Software Hub on NetApp Trident storage, create the following volume snapshot class:
+
+    cat << EOF | oc apply -f -
+    apiVersion: snapshot.storage.k8s.io/v1
+    kind: VolumeSnapshotClass
+    metadata:
+      name: csi-snapclass
+      labels:
+        velero.io/csi-volumesnapshot-class: "true"
+    driver: csi.trident.netapp.io
+    deletionPolicy: Retain
+    EOF
+
+Parent topic:
+Installing and configuring the IBM Software Hub OADP utility on the source cluster
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2024
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+
+    On this page
+    Overview
+    1. Setting up a client workstation
+    2. Moving images for backup and restore to a private container registry
+    3. Installing IBM Software Hub OADP backup and restore utility components
+    4. Installing the jq JSON command-line utility
+    5. Configuring the OADP backup and restore utility
+    6. Creating volume snapshot classes on the source cluster
+

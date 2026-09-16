@@ -1,0 +1,222 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                        Mirroring images directly to the private container registry
+                        Mirroring images using an intermediary container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Upgrading prerequisite software (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-07-15
+
+Several services have prerequisite software that must be upgraded by a cluster administrator.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are here icon. Preparing the cluster
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Cluster administrator A cluster administrator must update the prerequisite software on the cluster.
+When do you need to complete this task?
+
+    Complete the appropriate tasks if your environment includes any of the services that need the prerequisite software.
+    One-time setup You must complete this task if you upgrade your cluster and need to upgrade the prerequisite software to maintain compatibility with:
+
+        The version of Red Hat® OpenShift® Container Platform that you are running.
+        The version of IBM® Software Hub that you plan to upgrade to.
+
+About this task
+
+The prerequisite software that you must upgrade depends on the services on your environment. Use the following table to determine which prerequisite software you need to upgrade:
+Prerequisite software
+	
+Services with this prerequisite
+	
+Upgrade this software if...
+Node Feature Discovery Operator	
+
+An asterisk (*) indicates that the service requires GPU in some situations.
+
+    IBM Knowledge Catalog Premium *
+    IBM Knowledge Catalog Standard *
+    Watson Machine Learning *
+    Watson Speech services *
+    Watson Studio Runtimes *
+    watsonx.ai™
+    watsonx Assistant *
+    Watsonx BI
+    watsonx Code Assistant™
+    watsonx Code Assistant for Red Hat Ansible® Lightspeed
+    watsonx Code Assistant for Z
+    watsonx Code Assistant for Z Agentic
+    watsonx Code Assistant for Z Code Explanation
+    watsonx Code Assistant for Z Code Generation
+    watsonx.data™ *
+    watsonx.data Premium
+    watsonx.data intelligence
+    watsonx™ Orchestrate *
+
+	
+
+You upgraded Red Hat OpenShift Container Platform and the operator is installed with installPlanApproval: Manual.
+NVIDIA GPU Operator 	
+
+An asterisk (*) indicates that the service requires GPU in some situations.
+
+    IBM Knowledge Catalog Premium *
+    IBM Knowledge Catalog Standard *
+    Watson Machine Learning *
+    Watson Speech services *
+    Watson Studio Runtimes *
+    watsonx.ai
+    watsonx Assistant *
+    Watsonx BI
+    watsonx Code Assistant
+    watsonx Code Assistant for Red Hat Ansible Lightspeed
+    watsonx Code Assistant for Z
+    watsonx Code Assistant for Z Agentic
+    watsonx Code Assistant for Z Code Explanation
+    watsonx Code Assistant for Z Code Generation
+    watsonx.data *
+    watsonx.data Premium
+    watsonx.data intelligence
+    watsonx Orchestrate *
+
+	
+
+The version of the operator on your cluster has reached the end of support. For details, see NVIDIA GPU Operator Life Cycle in the
+Red Hat OpenShift AI	
+
+An asterisk (*) indicates that the service requires Red Hat OpenShift AI in some situations.
+
+    IBM Knowledge Catalog Premium *
+    IBM Knowledge Catalog Standard *
+    Watson Speech services *
+    watsonx.ai
+    watsonx Assistant *
+    Watsonx BI
+    watsonx Code Assistant
+    watsonx Code Assistant for Red Hat Ansible Lightspeed
+    watsonx Code Assistant for Z
+    watsonx Code Assistant for Z Agentic
+    watsonx Code Assistant for Z Code Explanation
+    watsonx Code Assistant for Z Code Generation
+    watsonx.data Premium
+    watsonx.data intelligence
+    watsonx Orchestrate *
+
+	
+
+The required version of Red Hat OpenShift AI depends on the version of IBM Software Hub that you plan to install.
+You must upgrade this software if both of the following statements are true:
+
+    You plan to upgrade an instance of IBM Software Hub with services that have a dependency on Red Hat OpenShift AI.
+    You plan to upgrade to a version of IBM Software Hub that requires a newer version of Red Hat OpenShift AI.
+
+Multicloud Object Gateway	
+
+    Watson Discovery
+    Watson Speech services
+    watsonx Assistant
+    watsonx Orchestrate
+
+	
+
+You must upgrade Multicloud Object Gateway if you upgrade Red Hat OpenShift Container Platform.
+Red Hat OpenShift Serverless Knative Eventing	
+
+    watsonx Assistant
+    watsonx Orchestrate
+
+	
+You must upgrade Red Hat OpenShift Serverless Knative Eventing if any of the following statements is true:
+
+    There is a new version of the IBM Events Operator included with IBM Software Hub.
+    You upgrade Red Hat OpenShift Container Platform and the version of the Red Hat OpenShift Serverless Operator on your cluster is not supported on the version of OpenShift Container Platform that you are running.
+    The version of the Red Hat OpenShift Serverless Operator on your cluster is out of support.
+
+Procedure
+
+Update the appropriate prerequisite software on your cluster.
+
+    Upgrading operators for services that require GPUs(Upgrading from Version 5.1 to Version 5.3)
+    If your environment includes services that require GPUs, you might need to upgrade the NVIDIA GPU Operator and the Node Feature Discovery Operator.
+    Upgrading Red Hat OpenShift AI (Upgrading from Version 5.1 to Version 5.3)
+    If your environment includes services with a dependency on Red Hat OpenShift AI, you might need to upgrade the Red Hat OpenShift AI Operator before you upgrade IBM Software Hub.
+    Upgrading Multicloud Object Gateway for IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+    If your environment includes services with a dependency on Multicloud Object Gateway, you might need to upgrade Multicloud Object Gateway before you upgrade IBM Software Hub.
+
+Parent topic:
+Preparing your cluster for a new version of IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Updating cluster-scoped resources for shared cluster components (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    About this task
+    Procedure
+

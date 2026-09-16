@@ -1,0 +1,93 @@
+
+https://www.ibm.com/docs/en/software-hub/5.3.x?topic=db2-post-installation-setup
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+                Data Gate
+                Data Replication
+                Data Virtualization
+                Db2
+                    Preparing to install
+                    Installing
+                    Post-installation setup
+                        Creating a service instance
+                        Deploying with limited privileges
+                        Upgrading the license before you deploy Db2
+                        Configuring tethered namespaces
+                        Advanced configuration for demanding workloads
+                        Disabling database connection validation after installation or upgrade
+                    Upgrading
+                    Administering
+                    Getting started
+                    Uninstalling
+                    Db2 REST service
+                Db2 Data Management Console
+                Db2 Warehouse
+                EDB Postgres
+                Informix
+                MongoDB
+                Unstructured Data Integration
+                watsonx.data
+                watsonx.data Premium
+            Developer tool services
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Post-installation setup for the Db2 service
+Last Updated: 2026-03-26
+
+After you install the Db2 service on IBM® Software Hub, you must configure settings specifically for your environment before provisioning an instance.
+
+    Creating a service instance for Db2
+    After you install Db2, you must create at least one Db2 service instance in the operands project. You can choose the method or methods that you want to use to create service instances.
+    Deploying Db2 with limited privileges
+    You can improve security by running the Db2 container on IBM Software Hub with limited privileges.
+    Upgrading the license before you deploy Db2
+    After you install the Db2 service, you can upgrade your license from Db2 Community Edition to Db2 Advanced Edition.
+    Configuring tethered namespaces for the Db2 service
+    You can configure tethered namespaces for your Db2 databases to isolate specific databases or workloads.
+    Advanced configuration for demanding workloads in Db2
+    You can manually update the CRI-O configuration of the Red Hat® OpenShift® system where Db2 is running with or without Machine Config to handle advanced configurations and demanding workloads.
+    Disabling database connection validation for Db2 after installation or upgrade
+    You can disable the validation check for all Db2 database connections.
+
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+

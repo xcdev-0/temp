@@ -1,0 +1,75 @@
+# 현대 CPD 5.3.1 / NFS / MinIO / Kopia — 현장용 구성 (2026-09-10)
+# 근거: 사용자 제공 5.3.x 백업 문서 및 기존 DPA.
+# https://www.ibm.com/docs/en/software-hub/5.3.x?topic=software-installing-configuring-oadp-utility
+# 배스천에서 기존 환경변수를 불러온 뒤 아래 블록 전체를 실행한다.
+# 기존 DPA가 있으면 metadata.name과 namespace를 실제 이름에 맞춰 같은 DPA를 갱신한다.
+# MinIO: Service=minio, namespace=velero, S3 API=9000, bucket=velero.
+# prefix=velero와 Secret=cloud-credentials-2/key=cloud는 이 파일의 기존 값을 유지했다.
+# 5.1.3 저장소를 이어 쓸 경우 원래 bucket/prefix/Secret 값을 확인해 맞춘다.
+# mc port-forward의 127.0.0.1:9000은 DPA의 S3 주소로 사용하지 않는다.
+# 성공 확인: DPA 정상 조정, Velero/node-agent Ready, BackupStorageLocation Available.
+
+cat << EOF | oc apply -f -
+apiVersion: oadp.openshift.io/v1alpha1
+kind: DataProtectionApplication
+metadata:
+  name: openshift-dpa
+  namespace: openshift-adp
+spec:
+  configuration:
+    velero:
+      customPlugins:
+      - image: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpfs/cpfs-oadp-plugins:latest
+        name: cpfs-oadp-plugin
+      - image: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/cpdbr-velero-plugin:5.3.1
+        name: cpdbr-velero-plugin
+      - image: ${PRIVATE_REGISTRY_LOCATION}/cpopen/cpd/swhub-velero-plugin:5.3.1
+        name: swhub-velero-plugin
+      - image: ${PRIVATE_REGISTRY_LOCATION}/db2u/db2u-velero-plugin:5.3.1
+        name: db2u-velero-plugin
+      defaultPlugins:
+      - aws
+      - openshift
+      podConfig:
+        resourceAllocations:
+          limits:
+            cpu: 1
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+      resourceTimeout: 60m
+    nodeAgent:
+      enable: true
+      uploaderType: kopia
+      timeout: 72h
+      podConfig:
+        resourceAllocations:
+          limits:
+            cpu: 1
+            memory: 32Gi
+          requests:
+            cpu: 500m
+            memory: 256Mi
+        tolerations:
+        - key: icp4data
+          operator: Exists
+          effect: NoSchedule
+  backupImages: false
+  backupLocations:
+  - velero:
+      provider: aws
+      default: true
+      objectStorage:
+        bucket: velero
+        prefix: velero
+      config:
+        region: minio
+        s3ForcePathStyle: "true"
+        s3Url: http://minio.velero.svc:9000
+      credential:
+        name: cloud-credentials-2
+        key: cloud
+EOF
+
+

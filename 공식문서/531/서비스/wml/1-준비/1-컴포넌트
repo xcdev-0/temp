@@ -1,0 +1,169 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                    Determining which components to upgrade
+                    Determining which models and optional images to mirror
+                    Updating your environment variables script
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                Preparing your cluster
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Determining which components to upgrade (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+To successfully upgrade from IBM® Software Hub Version 5.1 to Version 5.3 refresh, you must determine which components are installed for the instance of IBM Software Hub that you want to upgrade.
+
+Upgrade phase
+
+        You are here icon. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+    Operations team The IBM Software Hub operations team must determine:
+
+        Which components are installed on the cluster
+        Which components are associated with the instance of IBM Software Hub that you want to upgrade.
+
+When do you need to complete this task?
+
+    Repeat as needed Repeat this task for each instance of IBM Software Hub on your cluster.
+    Ensure that you complete this task before you:
+
+        Mirror images to your private container registry
+        Prepare to upgrade an instance of IBM Software Hub
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written if you set up environment variables. For instructions, see Setting up installation environment variables.
+
+Ensure that you source the environment variables before you run the commands in this task.
+
+Before you determine which components you need to upgrade, review the following guidance:
+
+    Environments with multiple instances of IBM Software Hub
+    Version support
+    Options for upgrading components
+
+Environments with multiple instances of IBM Software Hub
+    You can upgrade each instance of IBM Software Hub on the cluster independently. You can optionally leave different instances at different versions. For example, you can have one instance of IBM Software Hub at Version 5.1.2 and one instance at Version 5.3.1.
+Version support
+    Important: All of the components that are associated with an instance of IBM Software Hub must be installed at the same version. You cannot install services from different releases of IBM Software Hub in the same instance.
+Options for upgrading components
+
+    You have two options for upgrading the components:
+    Option
+    	
+    Benefits
+    	
+    Drawbacks
+    Upgrade each component individually.	If you feel more comfortable running upgrades one at a time, this option gives you more granular control over the upgrade process.
+
+    Keep in mind that all of the operators are upgraded at the same time. You cannot upgrade the operators individually.
+    	
+
+        You must complete more steps to successfully install the software on your environment.
+        The order in which you upgrade components is important.
+
+    Upgrade all of the components at the same time.	
+
+        You can complete the upgrade in fewer steps.
+        The cpd-cli is designed to upgrade the components in the correct order, which reduces the likelihood of errors.
+
+    	
+
+    If you encounter an issue when upgrading a component, you can follow the instructions to upgrade the service separately.
+
+Procedure
+
+To determine which components to upgrade:
+
+    Log the cpd-cli in to the Red Hat® OpenShift® Container Platform cluster:
+
+    ${CPDM_OC_LOGIN}
+
+    Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+    Determine whether the scheduling service is installed:
+
+    oc get scheduling -A
+
+        If the scheduling service is installed, the command returns information about the project where the scheduling service is installed and the version that is installed.
+
+        Ensure that the COMPONENTS variable in your environment variables script includes the scheduler component.
+        If the scheduling service is not installed, the command returns an empty response.
+    Determine which services are installed in the instance of IBM Software Hub that you want to upgrade:
+
+    cpd-cli manage list-deployed-components \
+    --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    The command returns a list of the services that are installed in the project.
+    Important: If the command returns the ws component, ensure that you add the ws_runtimes component to the your COMPONENTS environment variable when you update your environment variables script.
+
+What to do next
+Now that you've identified which components to upgrade, you're ready to complete Determining which models and images to mirror to your private container registry (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Collecting information required to upgrade IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Determining which models and images to mirror to your private container registry (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    Procedure
+    What to do next
+

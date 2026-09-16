@@ -1,0 +1,185 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                        Upgrading operators for services that require GPUs
+                        Upgrading Red Hat OpenShift AI
+                        Upgrading Multicloud Object Gateway
+                        Upgrading Red Hat OpenShift Serverless Knative Eventing
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                    Checking the health of your cluster
+                    Updating cluster-scoped resources for the instance
+                    Upgrading the IBM Events Operator
+                    Reauthorizing the NamespaceScope operator with the minimum RBAC
+                    Reauthorizing a user with the minimum RBAC
+                    Applying your entitlements
+                        Applying your entitlements without node pinning
+                        Applying your entitlements and pinning pods to nodes
+                Upgrading an instance of IBM Software Hub
+                    Creating image pull secrets for the instance
+                    Upgrading IBM Software Hub
+                    Updating the cpdbr service
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Upgrading the IBM Software Hub configuration admission controller webhook (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-26
+
+If you installed the IBM Software Hub configuration admission controller webhook, a cluster administrator must upgrade the webhook after you upgrade IBM Software Hub.
+
+Who needs to complete this task?
+
+    Cluster administrator A cluster administrator must complete this task.
+When do you need to complete this task?
+
+    This task is required if you installed the configuration admission controller webhook for this instance.
+
+    Repeat as needed If you have multiple instances of IBM Software Hub, repeat this task for each instance of IBM Software Hub that you upgraded.
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written using the installation environment variables. Ensure that you added the new environment variables from Updating your environment variables script.
+
+In addition, ensure that you source the environment variables before you run the commands in this task.
+About this task
+
+The IBM Software Hub configuration admission controller is a mutating webhook that injects the cpd-custom-ca-certs secret, the secret mount, and the associated environment variables into IBM Software Hub pods so that they have access to a shared set of custom certificates.
+
+Run the install-cpd-config-ac and enable-cpd-config-ac commands to upgrade and re-enable the webhook.
+Procedure
+
+    Log the cpd-cli in to the Red Hat® OpenShift® Container Platform cluster:
+
+    ${CPDM_OC_LOGIN}
+
+    Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+    If your cluster pulls images from a private container registry, set the ZEN_VERSION environment variable based on the version of IBM Software Hub on your cluster:
+    IBM Software Hub version
+    	
+    zen version
+    5.3.1 Patch 12	6.4.11
+    5.3.1 Patch 11	6.4.11
+    5.3.1 Patch 10	6.4.9
+    5.3.1 Patch 9	6.4.9
+    5.3.1 Patch 8	6.4.7
+    5.3.1 Patch 7	6.4.7
+    5.3.1 Patch 6	6.4.5
+    5.3.1 Patch 5	6.4.5
+    5.3.1 Patch 4	6.4.4
+    5.3.1 Patch 3	6.4.3
+    5.3.1 Patch 2	6.4.2
+    5.3.1 Patch 1	6.4.1
+    5.3.1	6.4.0
+    5.3.0	6.3.0
+
+    export ZEN_VERSION=<version>
+
+    Upgrade the configuration admission controller webhook:
+    The cluster pulls images from the IBM Entitled Registry
+
+    cpd-cli manage install-cpd-config-ac \
+    --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    The cluster pulls images from a private container registry
+
+    x86_64 clusters
+
+        cpd-cli manage install-cpd-config-ac \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+        --cpd_config_ac_image=${PRIVATE_REGISTRY_LOCATION}/cpopen/cpfs/zen-rsi-adm-controller:${ZEN_VERSION}-amd64
+
+    ppc64le clusters
+
+        cpd-cli manage install-cpd-config-ac \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+        --cpd_config_ac_image=${PRIVATE_REGISTRY_LOCATION}/cpopen/cpfs/zen-rsi-adm-controller:${ZEN_VERSION}-ppc64le
+
+    s390x clusters
+
+        cpd-cli manage install-cpd-config-ac \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+        --cpd_config_ac_image=${PRIVATE_REGISTRY_LOCATION}/cpopen/cpfs/zen-rsi-adm-controller:${ZEN_VERSION}-s390x
+
+    Re-enable the configuration admission controller webhook:
+
+    cpd-cli manage enable-cpd-config-ac \
+    --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+What to do next
+
+Now that you've upgraded the configuration admission controller webhook, you're ready to complete Upgrading privileged monitors (Upgrading from Version 5.1 to Version 5.3).
+
+If you don't use privileged monitors, your next steps depend on which components you upgraded:
+
+IBM Software Hub control plane and services
+    If you upgraded the IBM Software Hub control plane and the services in the instance, complete Setting up services after install and upgrade.
+IBM Software Hub control plane only
+    If you upgraded only the IBM Software Hub control plane, you must upgrade the services in the instance. For more information, see Services.
+
+Related reference
+
+    cpd-cli manage login-to-ocp
+    cpd-cli manage install-cpd-config-ac
+    cpd-cli manage enable-cpd-config-ac
+
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    About this task
+    Procedure
+    What to do next
+

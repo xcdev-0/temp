@@ -1,0 +1,304 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+                Data Gate
+                Data Replication
+                Data Virtualization
+                Db2
+                    Preparing to install
+                    Installing
+                    Post-installation setup
+                    Upgrading
+                    Administering
+                        Service configuration
+                        Database configuration
+                            Changing Db2 configuration settings
+                            Setting a time zone for new or existing deployments
+                            Upgrading the license of a deployed service
+                            Enabling the Db2 Spatial Extender
+                            Managing multiple databases on a deployment
+                            Q Replication
+                                Deploying Q Replication
+                                Administering Q Replication
+                                    Accessing the Q Replication REST API
+                                    Activating Q Replication
+                                    Configure targets and replication sets
+                                        Trusting targets and exchanging Db2 TLS certificates
+                                        Initializing the replication target on the replication source
+                                        Creating a replication set
+                                        Adding a table to a replication set
+                                        Deleting tables
+                                        Deleting a replication set
+                                        Deleting replication targets
+                                    Managing replication
+                                    Extending the MQ security certificate
+                                    Updating external source ports
+                                    Updating external target ports
+                                    Upgrading the trial license
+                                    Scaling up Q Replication
+                            Db2 high availability disaster recovery (HADR)
+                        Security
+                        Backing up and restoring
+                        Resource management
+                        Support
+                        Data migration
+                    Getting started
+                    Uninstalling
+                    Db2 REST service
+                Db2 Data Management Console
+                Db2 Warehouse
+                EDB Postgres
+                Informix
+                MongoDB
+                Unstructured Data Integration
+                watsonx.data
+                watsonx.data Premium
+            Developer tool services
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Trusting targets and exchanging Db2 TLS certificates
+Last Updated: 2026-01-07
+
+After you activate replication on the source and target systems, you must use the Db2 Q Replication REST API to trust the target and exchange Transport Layer Security (TLS) certificates between source and target systems.
+About this task
+This task is done on the cluster host for the replication source before you add the replication target. Collect the following information before you run the API calls:
+
+    The basic authorization token of the replication source database.
+    The hostname of the replication target database.
+    The username of the replication target database.
+    The user password of the replication target database.
+    The Replication REST API server external port number for the replication target database.
+    The Target environment (DB2U-SA-DB2OLTP)
+
+1 You need to create a basic authorization token to run a cURL request. To create your token, run this command:
+
+echo "<source_db_username>:<source_db_password>" | base64
+
+where source refers to either the source or destination database.
+2 You can retrieve the Replication REST API server external port number by running the following command from the target system:
+
+oc get svc -n <your_db2_instance_namespace> | grep <your_db2_instance_id> | grep 9444 | sed 's/.*9444://' | sed 's/\/TCP.*//')
+
+Note: Replication must run in Security Enhanced Linux (SELinux) enforcing mode.
+Procedure
+
+    Prompt the replication source database to trust the replication target database. This API call imports the REST SSL certificate of the target database into the truststore of the source system, for API execution. The API call also exchanges the IBM MQ certificates between the source and target systems for IBM MQ message encryption.
+
+    curl --insecure -X POST  --header 'Content-Type: application/json' --header 'Accept: application/json' --header 'Authorization: Basic <your_authorization_token>' 'https://source_hostname:{source_rest_external_port}/dr/v2/target/trust-target?targetEnvironment=<target_environment_type>' -H "accept: application/json" -H "Content-Type: application/json" -d '{ "targetDatabaseHost": "<target_hostname>", "targetDatabaseUsername": "<user_name>", "targetDatabasePassword": "<password>", "targetRestServerPort": <target_rest_external_port>}'
+
+    Verify that the state is TRUSTED in the API response before you proceed to the next step. If not, examine the error code, message, and, resolution in the response.
+    Exchange the Db2® certificates between the source and target databases. This API call starts configuring the Db2 TLS certificate on both the local and remote systems. You can monitor the progress by using the URL that is returned from the call.
+
+    curl --insecure -X PUT --header 'Content-Type: application/json' --header 'Accept: application/json'  --header 'Authorization: Basic <your_authorization_token>'  
+    'https://<source_hostname>:<source_rest_external_port>/dr/v1/target/configure_db2_ssl/<source_database_name>/<target_database_name>/<target_db2_ssl_external_port>/BLUDB/<target_rest_external_port>?restartOption=Y' -H "accept: application/json" -H "Content-Type: application/json" -d '{ "dbUsername": "<target_database_user_name>", "dbPassword": "<password>"}'
+
+    If the call is successful, the Db2 Q Replication REST API server is restarted after 60 seconds on both the source and target replication containers.
+
+    This API call returns a job number (id).
+
+    {
+      "id": <job_number>,
+      "url": "https://<source_hostname>:<source_rest_external_port>/dr/v1/target/progress/<job_number>"
+    }
+
+    Include the job number in the following API call to check the progress of the TLS exchange:
+
+    curl --insecure -X GET --header 'Content-Type: application/json' --header 'Accept: application/json'  --header 'Authorization: Basic <your_authorization_token>'   
+    'https://<source_hostname>:<source_rest_external_port>/dr/v1/target/progress/<job number>'
+
+    Running this API call restarts the Replication REST API server on both the source and target systems. This restart can take up to 10 minutes.
+    Schedule the Db2 source and target servers to be restarted for the exchanged certificates to take effect inside the source and target Db2 pods.
+    After the Db2 TLS certificate exchange responds with executionState=COMPLETED and overallJobResult=PASS, you can proceed to create a replication set. Until these values are returned, examine the error code, message, and resolution in the response to find a solution.
+    Verify that the replication REST API server is active by running the following commands:
+
+    oc exec -i {<source_replication_podname>} -- /opt/ibm/bludr/scripts/bin/bludr-status.sh 
+    oc exec -i {<target_replication_podname>} -- /opt/ibm/bludr/scripts/bin/bludr-status.sh 
+
+Results
+
+The trust-target operation is complete when a response message that contains "state": "TRUSTED" is returned. The replication source database then starts communicating with the target REST API server. Until this value is returned, examine the error code, message, and resolution in the response.
+
+The exchanging of Db2 TLS certificates is complete when a response message that contains "executionState": "COMPLETED", "overallJobResult": "PASS" is returned. The replication source database and the replication target database can now connect to one another to continue the replication setup. Until these values are returned, examine the error code, message, and resolution in the response.
+The following table lists the possible HTTP status codes and response messages for the trust-target and Db2 TLS certificate exchange API calls. It also includes sample code to show the response syntax.
+HTTP Status Code
+	
+Reason
+	
+Response Model
+
+200
+	Target is trusted and Db2 TLS certificate exchanged	The user request returns "state": "TRUSTED" when the trust-target operation is complete: :
+
+
+{
+  "name": "TRUST_TARGET_SUCCESS",
+  "message": "Trust Targets process complete.",
+  "values": [
+    {
+      "key": "targetDatabaseHost",
+      "value": "dr-target2.ibm.com"
+    },
+    {
+      "key": "targetDatabaseUsername",
+      "value": "dradmin1"
+    }
+  ],
+  "state": "TRUSTED"
+}
+
+The user request returns a job (id) and URL in exchanging Db2 SSL certificates::
+
+
+{
+  "id": 6,
+  "url": " https://dr-source1.ibm.com:31023/dr/v1/replicationset/progress/6"
+}
+
+The user request returns a successful response for the completion of the API call (sample value):
+
+
+{
+  "id": 6,
+  "url": "https://dr-source1.ibm.com:31023/dr/v1/target/progress/6",
+  "executionState": "COMPLETED",
+  "overallJobResult": "PASS",
+  "localJobStatusList": [
+    {
+      "jobKey": "fetchRemoteDB2SSLCertificate",
+      "jobDescription": "Fetches DB2 SSL Certificate from remote system.",
+      "execState": "COMPLETED",
+      "jobResult": "PASS",
+      "values": [
+        {
+          "key": "dbHost",
+          "value": "dr-target2.ibm.com"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "jobKey": "importRemoteDB2SSLCertificate",
+      "jobDescription": "Imports remote DB2 SSL Certificate into local QREP and DB2 Client keystore.",
+      "execState": "COMPLETED",
+      "jobResult": "PASS",
+      "values": [
+        {
+          "key": "dbHost",
+          "value": " dr-target2.ibm.com"
+        }
+      ],
+      "errors": []
+    },
+    {
+      "jobKey": "remoteDB2SSLCertificateConfiguration",
+      "jobDescription": "Configures local DB2 SSL certificate on remote system. Restarts QREP Rest server on local and remote system if restart option has been selected as 'Y' after this job has been completed.",
+      "execState": "COMPLETED",
+      "jobResult": "PASS",
+      "values": [
+        {
+          "key": "dbHost",
+          "value": " dr-target2.ibm.com"
+        }
+      ],
+      "errors": []
+    }
+  ],
+  "remoteJobStatusList": []
+}
+
+4xx	Client request error	The user request was not fulfilled due to malformed request syntax or other client issues:
+
+{
+  "errorCode": "string",
+  "errorMessage": "string",
+  "errorResolution": "string"
+}
+
+5xx	Server error	The user request appeared valid, but was not fulfilled due to an issue with the server:
+
+{
+  "errorCode": "string",
+  "errorMessage": "string",
+  "errorResolution": "string"
+}
+
+Example
+The following example shows the command syntax for calling the Replication REST API command to prompt the replication source database to trust the target database:
+
+curl –insecure -X POST --header 'Content-Type: application/json' --header 'Accept: application/json' --header 'Authorization: Basic ZHNhZG06MDNRVWlMczFhcmoxb3ky' -d '{ "targetDatabaseHost": "dr-target2.ibm.com", "targetDatabaseUsername": "dradmin1", "targetDatabasePassword": "dradminpassword", "targetRestServerPort": 32483 }' 'https://dr-source1.ibm.com:31023/dr/v2/target/trust-target?targetEnvironment=DB2U-SA-DB2WH'
+
+The following example shows the response syntax for the previous command:
+
+{ 
+  "name": "TRUST_TARGET_SUCCESS",
+  "message": "Trust Targets process complete.",
+  "values": [
+    {
+      "key": "targetDatabaseHost",
+      "value": "dr-target2.ibm.com"
+    },
+    {
+      "key": "targetDatabaseUsername",
+      "value": "dsadm"
+    }
+  ],
+  "state": "TRUSTED"
+}
+
+The following example shows the command syntax for calling the Replication REST API to exchange Db2 TLS certificates between the source container dr-source1.ibm.com and the target container dr-target2.ibm.com:
+
+Curl --insecure -X PUT --header 'Content-Type: application/json' --header 'Accept: application/json' --header 'Authorization: Basic ZHNhZG06MDNRVWlMczFhcmoxb3ky' -d '{ "dbUsername": "dradmin1", "dbPassword": "dradminpassword" }' 
+'https://dr-source1.ibm.com:31023/dr/v1/target/configure_db2_ssl/dr-source1.ibm.com/dr-target2.ibm.com/30138/BLUDB/32483?restartOption=Y'
+
+The following example shows the command syntax for checking the progress of the TLS certificate exchange by API call by using the job number 6:
+
+{
+  "id": 6,
+  "url": "https://dr-source1.ibm.com:31023/dr/v1/target/progress/6"
+}
+
+What to do next
+Configuring targets and replication sets with the Db2 Q Replication REST API
+Parent topic:
+Configuring targets and replication sets with the Db2 Q Replication REST API
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+

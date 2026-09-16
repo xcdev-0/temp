@@ -1,0 +1,1254 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                    Determining which components to upgrade
+                    Determining which models and optional images to mirror
+                    Updating your environment variables script
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                Preparing your cluster
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Determining which models and images to mirror to your private container registry (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+If you use a private container registry, you might need to mirror additional images and models, such as foundation models, to your registry. The additional images and models that you need depend on the services that you plan to upgrade and the features that you plan to enable. Before you upgrade IBM® Software Hub, determine which additional images and models you need to mirror.
+
+Upgrade phase
+
+        You are here icon. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Operations team The IBM Software Hub operations team should determine which additional images and models to mirror.
+When do you need to complete this task?
+
+    Complete this task before you complete any of the following tasks:
+
+        Mirror images to a private container registry.
+        Upgrade IBM Software Hub on your cluster.
+
+    Repeat as needed You might need to repeat this task if you plan to upgrade multiple instances of IBM Software Hub, especially if the instances will include different services.
+
+About this task
+
+Some images and models are not mirrored by default when you mirror the images for a service to your private container registry. In some cases, images or models are not mirrored because they are required only to enable optional features. In other cases, models are not mirrored because there are a large number of models to choose from, and mirroring all of the models would require a significant amount of storage.
+
+In addition, if a service depends on a model that is available through watsonx.ai™ Inference foundation models component (the watsonx_ai_ifm component), the model is not mirrored by default when you mirror the images for the service.
+This task helps you identify:
+
+    Which services have optional images
+    Which services require models to enable optional features
+    Which services require models that are not mirrored by default
+
+This task also provides the group that you must specify to mirror each model or image. Use this information to populate the IMAGE_GROUPS environment variable.
+Procedure
+
+Review the following table to determine whether the services that you plan to upgrade use models and whether the models are optional or required.
+Service
+	
+Optional images or foundation models
+AI Factsheets	Not applicable. All images are mirrored by default.
+Analytics Engine powered by Apache Spark	Not applicable. All images are mirrored by default.
+Cognos Analytics	Not applicable. All images are mirrored by default.
+Cognos Dashboards	Not applicable. All images are mirrored by default.
+Data Gate	Not applicable. All images are mirrored by default.
+Data Privacy	Not applicable. All images are mirrored by default.
+Data Product Hub	Not applicable. All images are mirrored by default.
+Data Refinery	Not applicable. All images are mirrored by default.
+Data Replication	Not applicable. All images are mirrored by default.
+DataStage	Not applicable. All images are mirrored by default.
+Data Virtualization	Not applicable. All images are mirrored by default.
+Db2	Not applicable. All images are mirrored by default.
+Db2 Big SQL	Not applicable. All images are mirrored by default.
+Db2 Data Management Console	Not applicable. All images are mirrored by default.
+Db2 Warehouse	Not applicable. All images are mirrored by default.
+Decision Optimization	Not applicable. All images are mirrored by default.
+EDB Postgres	Not applicable. All images are mirrored by default.
+Execution Engine for Apache Hadoop	Not applicable. All images are mirrored by default.
+IBM Knowledge Catalog	Not applicable. All images are mirrored by default.
+IBM Knowledge Catalog Premium	If you plan to enable gen AI based features, you must mirror the required foundational model.
+
+See Models for IBM Knowledge Catalog Premium.
+IBM Knowledge Catalog Standard	If you plan to enable gen AI based features, you must mirror the required foundational model.
+
+See Models for IBM Knowledge Catalog Standard.
+IBM Manta Data Lineage	Not applicable. All images are mirrored by default.
+IBM Master Data Management	Not applicable. All images are mirrored by default.
+IBM StreamSets	Not applicable. All images are mirrored by default.
+Informix	Not applicable. All images are mirrored by default.
+MANTA Automated Data Lineage	Not applicable. All images are mirrored by default.
+MongoDB	Not applicable. All images are mirrored by default.
+OpenPages	Not applicable. All images are mirrored by default.
+Orchestration Pipelines	You can choose whether to mirror the optional images.
+
+See Optional images for Orchestration Pipelines.
+Planning Analytics	Not applicable. All images are mirrored by default.
+Product Master	Not applicable. All images are mirrored by default.
+RStudio® Server Runtimes	Not applicable. All images are mirrored by default.
+SPSS Modeler	Not applicable. All images are mirrored by default.
+Synthetic Data Generator	Not applicable. All images are mirrored by default.
+Unstructured Data Integration	Not applicable. All images are mirrored by default.
+Voice Gateway	Not applicable. All images are mirrored by default.
+Watson Discovery	Not applicable. All images are mirrored by default.
+Watson Machine Learning	You can choose whether to mirror the optional images.
+
+See Optional images for Watson Machine Learning.
+Watson OpenScale	Not applicable. All images are mirrored by default.
+Watson Speech services	You can choose which models to mirror. See:
+
+    Models for Watson Speech to Text
+    Models for Watson Text to Speech
+
+Watson Studio	Not applicable. All images are mirrored by default.
+Watson Studio Runtimes	Not applicable. All images are mirrored by default.
+watsonx.ai	You can choose which models to mirror.
+
+See Models for watsonx.ai
+watsonx Assistant	You can choose which models to mirror.
+
+See Foundation models for watsonx Assistant.
+watsonx™ BI	You must mirror the required model.
+
+See Foundation models for watsonx BI.
+watsonx Code Assistant™	You must mirror the required model.
+
+See Foundation models for watsonx Code Assistant.
+watsonx Code Assistant for Red Hat® Ansible® Lightspeed	Not applicable. All images are mirrored by default.
+watsonx Code Assistant for Z	Not applicable. All images are mirrored by default.
+watsonx Code Assistant for Z Agentic	Not applicable. All images are mirrored by default.
+watsonx Code Assistant for Z Code Explanation	Not applicable. All images are mirrored by default.
+watsonx Code Assistant for Z Code Generation	Not applicable. All images are mirrored by default.
+watsonx Code Assistant for Z Understand	The requirement depends on the version of IBM Software Hub you are upgrading to:
+
+    5.3.0 - Not applicable. All images are mirrored by default.
+    5.3.1 and later - You must mirror the required model.
+
+    See Foundation models for watsonx Code Assistant for Z Understand
+
+watsonx.data™	Not applicable. All images are mirrored by default.
+watsonx.data Premium	You must mirror the required models.
+
+See Foundation models for watsonx.data Premium.
+watsonx.data integration	Not applicable. All images are mirrored by default.
+watsonx.data intelligence	If you plan to enable gen AI based features, you must mirror the required foundational model.
+
+See Foundation models for watsonx.data intelligence.
+watsonx.governance™	Not applicable. All images are mirrored by default.
+watsonx Orchestrate	You can choose which foundation models to mirror.
+
+See Foundation models for watsonx Orchestrate.
+Models for IBM Knowledge Catalog Premium
+
+If you plan to enable gen AI based features, you must mirror the specified model.
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-8b-instruct	
+
+    Gen AI based enrichment
+    Data search
+
+	ibmwxGranite38BInstruct
+Models for IBM Knowledge Catalog Standard
+
+If you plan to enable gen AI based features, you must mirror the specified model.
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-8b-instruct	
+
+    Data search
+
+	ibmwxGranite38BInstruct
+Optional images for Orchestration Pipelines
+
+You can choose whether to mirror the optional images for Orchestration Pipelines:
+Image
+	
+Feature the image provides
+	
+Image group
+run-bash-script	Run Bash scripts that do not use any OpenSSH or Db2 binary packages.	ibmwsprbsnossh
+Optional images for Watson Machine Learning
+
+5.3.0 In IBM Software Hub Version 5.3.0, you can choose whether to mirror the images for Runtime 25.1.
+
+5.3.1 and later In IBM Software Hub Version 5.3.1, the images for Runtime 25.1 are automatically mirrored.
+Image
+	
+Feature the image provides
+	
+Image group
+wml‐dep‐rt‐251‐py	Watson Machine LearningRuntime 25.1.	ibmwmlRuntimes251
+Models for Watson Speech to Text
+
+If you plan to enable enrichments, you must mirror the specified model.
+Model
+	
+Features the model provides
+	
+Image group
+mistral-small-3-1-24b-instruct-2503 	
+
+    Add punctuation automatically.
+    Apply intelligent capitalization.
+
+	ibmwxMistralSmall3124BInstruct2503
+
+In addition, you can choose which language models to mirror.
+Language
+	
+Included models
+	
+Image group
+Dutch (nl)	Dutch, Belgian (nl-BE)
+
+    Telephony model: nlBeTelephony
+
+Dutch, Netherlands (nl-NL)
+
+    Multimedia model: nlNlMultimedia
+    Telephony model: nlNlTelephony
+
+	ibmwatsonspeech-stt-nl
+English (en)	English, Australian (en-AU)
+
+    Large speech model: enAu
+    Multimedia model: enAuMultimedia
+    Telephony model: enAuTelephony
+
+English, Indian (en-IN)
+
+    Large speech model: enIn
+    Telephony model: enInTelephony
+
+English, UK (en-GB)
+
+    Large speech model: enGb
+    Multimedia model: enGbMultimedia
+    Telephony model: enGbTelephony
+
+English, US (en-US)
+
+    Large speech model: enUs
+    Multimedia model: enUsMultimedia
+    Telephony model: enUsTelephony
+
+	The models are always included when you mirror the images for Watson Speech services.
+English (en)	World-wide English (en)
+
+    Telephony model: enWwMedicalTelephony
+
+	ibmwatsonspeech-stt-en
+French (fr)	French (fr-FR)
+
+    Large speech model: frFr
+    Multimedia model: frFrMultimedia
+    Telephony model: frFrTelephony
+
+French, Canadian (fr-CA)
+
+    Large speech model: frCa
+    Multimedia model: frCaMultimedia
+    Telephony model: frCaTelephony
+
+	ibmwatsonspeech-stt-fr
+German (de)	German (de-DE)
+
+    Large speech model: deDe
+    Multimedia model: deDeMultimedia
+    Telephony model: deDeTelephony
+
+	ibmwatsonspeech-stt-de
+Italian (it)	Italian (it-IT)
+
+    Multimedia model: itItMultimedia
+    Telephony model: itItTelephony
+
+	ibmwatsonspeech-stt-it
+Japanese (ja)	Japanese (ja-JP)
+
+    Large speech model: jaJp
+    Multimedia model: jaJpMultimedia
+    Telephony model: jaJpTelephony
+
+	ibmwatsonspeech-stt-ja
+Korean (ko)	Korean (ko-KR)
+
+    Multimedia model: koKrMultimedia
+    Telephony model: koKrTelephony
+
+	ibmwatsonspeech-stt-ko
+Portuguese (pt)	Portuguese (pt-PT)
+
+    Large speech model: ptPt
+
+Portuguese, Brazilian (pt-BR)
+
+    Large speech model: ptBr
+    Multimedia model: ptBrMultimedia
+    Telephony model: ptBrTelephony
+
+	ibmwatsonspeech-stt-pt
+Spanish (es)	Spanish, Argentinean (es-AR)
+
+    Large speech model: esAr
+
+Spanish, Castilian (es-ES)
+
+    Large speech model: esEs
+    Multimedia model: esEsMultimedia
+    Telephony model: esEsTelephony
+
+Spanish, Chilean (es-CL)
+
+    Large speech model: esCl
+
+Spanish, Colombian (es-CO)
+
+    Large speech model: esCo
+
+Spanish, Latin American (es-LA)
+
+    Telephony model: esLaTelephony
+
+Spanish, Mexican (es-MX)
+
+    Large speech model: esMx
+
+Spanish, Peruvian (es-PE)
+
+    Large speech model: esPe
+
+	ibmwatsonspeech-stt-es
+Other languages 	Arabic, Modern Standard (ar-MS)
+
+    Telephony model: arMsTelephony
+
+Chinese, Mandarin (zh-CN)
+
+    Telephony model: zhCnTelephony
+
+Czech (cs-CZ)
+
+    Telephony model: csCZTelephony
+
+Hindi (hi-IN)
+
+    Telephony model: hiInTelephony
+
+Swedish (sv-SE)
+
+    Telephony model: svSeTelephony
+
+	ibmwatsonspeech-stt-misc
+Deprecated hybrid models	Arabic, Modern Standard (AR-MS)
+
+    Broadband: arMsBroadbandModel
+
+Chinese, Mandarin (zh-CN)
+
+    Broadband: zhCnBroadbandModel
+    Narrowband: zhCnNarrowbandModel
+
+Dutch (nl-NL)
+
+    Broadband: nlNlBroadbandModel
+    Narrowband: nlNlNarrowbandModel
+
+English, Australian (en-AU)
+
+    Broadband: enAuBroadbandModel
+    Narrowband: enAuNarrowbandModel
+
+English, UK (en-UK)
+
+    Broadband: enGbBroadbandModel
+    Narrowband: enGbNarrowbandModel
+
+English, US (en-US)
+
+    Broadband: enUsBroadbandModel
+    Narrowband: enUsNarrowbandModel
+    Narrowband, short form: enUsShortFormNarrowbandModel
+
+French (fr-FR)
+
+    Broadband: frFrBroadbandModel
+    Narrowband: frFrNarrowbandModel
+
+French, Canadian (fr-CA)
+
+    Broadband: frCaBroadbandModel
+    Narrowband: frCaNarrowbandModel
+
+German (de-DE)
+
+    Broadband: deDeBroadbandModel
+    Narrowband: deDeNarrowbandModel
+
+Italian (it-IT)
+
+    Broadband: itItBroadbandModel
+    Narrowband: itItNarrowbandModel
+
+Japanese (ja-JP)
+
+    Broadband: jaJpBroadbandModel
+    Narrowband: jaJpNarrowbandModel
+
+Korean (ko-KR)
+
+    Broadband: koKrBroadbandModel
+    Narrowband: koKrNarrowbandModel
+
+Portuguese, Brazilian (pt-BR)
+
+    Broadband: ptBrBroadbandModel
+    Narrowband: ptBrNarrowbandModel
+
+Spanish, Castilian (es-ES)
+
+    Broadband: esEsBroadbandModel
+    Narrowband: esEsNarrowbandModel
+
+	ibmwatsonspeech-stt-hybrid
+Models for Watson Text to Speech
+
+You can choose which language models to mirror.
+Language
+	
+Included models
+	
+Image group
+English (en)	English, US (en-US)
+Expressive neural voices:
+
+    Michael: enUSMichaelExpressive
+
+Enhanced neural voices (V3):
+
+    Michael: enUSMichaelV3Voice
+
+	The models are always included when you mirror the images the for Watson Speech services.
+English (en)	English, Australian (en-AU)
+Expressive neural voices:
+
+    Heidi: enAUHeidiExpressive
+    Jack: enAUJackExpressive
+
+Natural voices:
+
+    Heidi: enAUHeidiNatural
+    Jack: enAUJackNatural
+
+English, Canadian (en-CA)
+Natural voices:
+
+    Hannah: enCAHannahNatural
+
+English, UK (en-GB)
+Expressive neural voices:
+
+    George enGBGeorgeExpressive
+
+Enhanced neural voices (V3):
+
+    Charlotte enGBCharlotteV3Voice
+    James enGBJamesV3Voice
+
+Natural voices:
+
+    Chloe: enGBChloeNatural
+    George: enGBGeorgeNatural
+
+English, US (en-US)
+Expressive neural voices:
+
+    Allison: enUSAllisonExpressive
+    Emma: enUSEmmaExpressive
+    Lisa: enUSLisaExpressive
+
+Enhanced neural voices (V3):
+
+    Allison: enUSAllisonV3Voice
+    Emily: enUSEmilyV3Voice
+    Henry: enUSHenryV3Voice
+    Kevin: enUSKevinV3Voice
+    Lisa: enUSLisaV3Voice
+    Olivia: enUSOliviaV3Voice
+
+Natural voices:
+
+    Ellie: enUSEllieNatural
+    Emma: enUSEmmaNatural
+    Ethan: enUSEthanNatural
+    Jackson: enUSJacksonNatural
+    Victoria: enUSVictoriaNatural
+
+	ibmwatsonspeech-tts-en
+French (fr)	French (fr-FR)
+Enhanced neural voices (V3):
+
+    Nicolas: frFRNicolasV3Voice
+    Renee: frFRReneeV3Voice
+
+French, Canadian (fr-CA)
+Enhanced neural voices (V3):
+
+    Louise: frCALouiseV3Voice
+
+	ibmwatsonspeech-tts-fr
+German (de)	German (de-DE)
+Enhanced neural voices (V3):
+
+    Birgit: deDEBirgitV3Voice
+    Dieter: deDEDieterV3Voice
+    Erika: deDEErikaV3Voice
+
+	ibmwatsonspeech-tts-de
+Spanish (es)	Spanish, Castilian (es-ES)
+Enhanced neural voices (V3):
+
+    Enrique: esESEnriqueV3Voice
+    Laura: esESLauraV3Voice
+
+Spanish, Latin American (es-LA)
+Enhanced neural voices (V3):
+
+    Sofia: esLASofiaV3Voice
+
+Natural voices:
+
+    Alejandro: esLAAlejandroNatural
+
+    5.3.1 and later This voice is available starting in Version 5.3.1.
+    Daniela: esLADanielaNatural
+
+    5.3.1 and later This voice is available starting in Version 5.3.1.
+
+Spanish, US (es-US)
+
+Enhanced neural voices (V3):
+
+    Sofia: esUSSofiaV3Voice
+
+	ibmwatsonspeech-tts-es
+Other languages	Dutch (nl-NL)
+Enhanced neural voices (V3):
+
+    Merel: nlNLMerelV3Voice
+
+Italian (it-IT)
+Enhanced neural voices (V3):
+
+    Francesca: itITFrancescaV3Voice
+
+Japanese (ja-JP)
+Enhanced neural voices (V3):
+
+    Emi: jaJPEmiV3Voice
+
+Korean (ko-KR)
+Enhanced neural voices (V3):
+
+    Jin: koKRJinV3Voice
+
+Portuguese, Brazilian (pt-BR)
+Expressive neural voices:
+
+    Lucas: ptBRLucasExpressive
+
+Enhanced neural voices (V3):
+
+    Isabela: ptBRIsabelaV3Voice
+
+Natural voices:
+
+    Lucas: ptBRLucasNatural
+    Camila ptBRCamilaNatural
+
+	ibmwatsonspeech-tts-misc
+Models for watsonx.ai
+
+You can choose which models you mirror.
+
+    Foundation models
+    Embedding models
+    Reranker models
+    Text extraction models
+    Time series models
+    Foundation models available for tuning
+
+Foundation models
+    Model
+    	
+    Description
+    	
+    Image group
+    allam-1-13b-instruct
+
+    Status: Available
+    	A bilingual large language model for Arabic and English that is initialized with Llama-2 weights and is fine-tuned to support conversational tasks.	ibmwxAllam113bInstruct
+    codestral-2501
+
+    Status: Available
+    	Ideal for complex tasks that require large reasoning capabilities or are highly specialized.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxCodestral2501
+    codestral-2508
+
+    Status: Available
+    	Ideal for code generation and high-precision fill-in-the-middle (FIM) completion. The foundation model is optimized for production engineering environments such as latency-sensitive, context-aware, and self-deployable.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxCodestral2508
+    codestral-22b
+
+    Status: Withdrawn
+    	Ideal for complex tasks that require large reasoning capabilities or are highly specialized.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxCodestral22B
+    devstral-medium-2507
+
+    Status: Available
+    	The devstral-medium-2507 foundation model from Mistral AI is a high-performance code generation and agentic reasoning model. Ideal for generalization across prompt styles and tool use in code agents and frameworks.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxDevstralMedium2507
+    devstral-medium-2512
+
+    Status: Available
+
+    5.3.1 and later
+    	The devstral-medium-2512 foundation model from Mistral AI is an agentic model for software engineering tasks from the Devstral 2 model family that excels at using tools to explore code bases, editing multiple files, and power software engineering agents.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxDevstralMedium2512
+    devstral-small-2512
+
+    Status: Available
+
+    5.3.1 and later
+    	The devstral-small-2512 foundation model from Mistral AI is an agentic model for software engineering tasks from the Devstral 2 model family that excels at using tools to explore code bases, editing multiple files, and power software engineering agents.	ibmwxDevstralSmall2512
+    flan-t5-xl-3b
+
+    Status: Withdrawn
+    	General use with zero- or few-shot prompts.	ibmwxGoogleFlanT5xl
+    gpt-oss-20b
+
+    Status: Available
+    	The gpt-oss foundation models are OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, fine-tuning, and various developer use cases. 	ibmwxGptOss20B
+    gpt-oss-120b
+
+    Status: Available
+    	The gpt-oss foundation models are OpenAI’s open-weight models designed for powerful reasoning, agentic tasks, fine-tuning, and various developer use cases. 	ibmwxGptOss120B
+    granite-4-h-micro
+
+    Status: Available
+    	The Granite 4.0 foundation models belong to the IBM Granite family of models. The granite-4-h-micro is a 3 billion parameter foundation model built for structured and long-context capabilities. The model is ideal for instruction following and tool-calling.	ibmwxGranite4HMicro
+    granite-4-h-small
+
+    Status: Available
+    	The Granite 4.0 foundation models belong to the IBM Granite family of models. The granite-4-h-small is 30 billion parameter foundation model built for structured and long-context capabilities. The model is ideal for instruction following and tool-calling capabilities.	ibmwxGranite4HSmall
+    granite-4-h-tiny
+
+    Status: Available
+    	The Granite 4.0 foundation models belong to the IBM Granite family of models. The granite-4-h-tiny is a 7 billion parameter long-context instruction-tuned model developed using a diverse set of techniques with a structured chat format, including supervised fine-tuning, model alignment using reinforcement learning, and model merging. This model is ideal for instruction following and tool-calling capabilities.	ibmwxGranite4HTiny
+    granite-13b-instruct-v2
+
+    Status: Withdrawn
+    	General use model from IBM that is optimized for question and answer use cases.	ibmwxGranite13bInstructv2
+    granite-3-3-8b-instruct
+
+    Status: Available
+    	An IBM-trained, dense decoder-only model, which is particularly well-suited for generative tasks.	ibmwxGranite338BInstruct
+    granite-3-2-8b-instruct
+
+    Status: Available
+    	A text-only model that is capable of reasoning. You can choose whether reasoning is enabled, based on your use case.	ibmwxGranite328BInstruct
+    granite-3-2b-instruct
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGranite32BInstruct
+    granite-3-8b-instruct
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGranite38BInstruct
+    granite-docling-258M
+
+    Status: Available
+    	Granite Docling is a multimodal image text to text model efficient for document conversion. The model preserves the core features of Docling while maintaining seamless integration with Docking documents to ensure full compatibility.	ibmwxGraniteDocling258M
+    granite-guardian-3-2b
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGraniteGuardian32b
+    granite-guardian-3-8b
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGraniteGuardian38b
+    granite-guardian-3-2-5b
+
+    Status: Available
+    	The Granite model series is a family of IBM-trained, dense decoder-only models, which are particularly well suited for generative tasks. This model cannot be used through the API.	ibmwxGraniteGuardian325b
+    granite-3b-code-instruct
+
+    Status: Available
+    	A 3-billion parameter instruction fine-tuned model from IBM that supports code discussion, generation, and conversion.	ibmwxGranite3bCodeInstruct
+    granite-8b-code-instruct
+
+    Status: Available
+    	A 8-billion parameter instruction fine-tuned model from IBM that supports code discussion, generation, and conversion.	ibmwxGranite8bCodeInstruct
+    granite-20b-code-instruct
+
+    Status: Available
+    	A 20-billion parameter instruction fine-tuned model from IBM that supports code discussion, generation, and conversion.	ibmwxGranite20bCodeInstruct
+    granite-20b-code-base-schema-linking
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGranite20bCodeBaseSchemaLinking
+    granite-20b-code-base-sql-gen
+
+    Status: Available
+    	Granite models are designed to be used for a wide range of generative and non-generative tasks. They employ a GPT-style decoder-only architecture, with additional innovations from IBM Research and the open-source community.	ibmwxGranite20bCodeBaseSqlGen
+    granite-34b-code-instruct
+
+    Status: Available
+    	A 34-billion parameter instruction fine-tuned model from IBM that supports code discussion, generation, and conversion.	ibmwxGranite34bCodeInstruct
+    granite-vision-3-2-2b
+
+    Status: Deprecated
+    	Granite 3.2 Vision is a image-text-in, text-out model capable of understanding images like charts for enterprise use cases for computer vision tasks.	ibmwxGraniteVision322B
+    granite-vision-3-3-2b
+
+    Status: Available
+    	Granite 3.2 Vision is an image-text-in, text-out model capable of understanding images like charts for enterprise use cases for computer vision tasks.	ibmwxGraniteVision322B
+    ibm-defense-3-3-8b-instruct
+
+    Status: Available
+    	The IBM watsonx.ai Defense Model is a specialized fine-tuned version of IBM’s granite-3-3-8b-instruct base model. The model is developed through Janes trusted open-source defense data to support defense and intelligence operations.	ibmwxDefensemodel
+    ibm-defense-4-0-micro
+
+    Status: Available
+    	The ibm-defense-4-0-micro is a defense-focused large language model (LLM) fine-tuned by an IBM Granite model. This model is designed to work with Janes foundation defense data, delivering fast, reliable and contextual results for mission-critical tasks in defense organizations.
+    Attention: You must purchase the IBM watsonx.ai Defense Model entitlement separately to download and use this model.
+    	ibmwxDefensemodel
+    ibm-defense-4-0-small
+
+    Status: Available
+
+    5.3.1 and later
+    	The ibm-defense-4-0-small is a defense-focused large language model fine-tuned by an IBM Granite model. This model is designed to work with Janes foundation defense data, delivering fast, reliable and contextual results for mission-critical tasks in defense organizations.
+    Attention: You must purchase the IBM watsonx.ai Defense Model entitlement separately to download and use this model.
+    	ibmwxIbmDefense40Small
+    jais-13b-chat
+
+    Status: Withdrawn
+    	General use foundation model for generative tasks in Arabic.	ibmwxCore42Jais13bChat
+    llama-4-maverick-17b-128e-instruct-fp8
+
+    Status: Available
+    	The Llama 4 collection of models are natively multimodal AI models that enable text and multimodal experiences. These models leverage a mixture-of-experts architecture to offer industry-leading performance in text and image understanding.	ibmwxLlama4Maverick17B128EInstructFp8
+    llama-4-maverick-17b-128e-instruct-int4
+
+    Status: Available
+    	The Llama 4 collection of models are multimodal AI models that enable text and multimodal experiences. These models leverage a mixture-of-experts architecture to offer industry-leading performance in text and image understanding.	ibmwxLlama4Maverick17B128EInstructInt4
+    llama-4-scout-17b-16e-instruct
+
+    Status: Withdrawn
+    	The Llama 4 collection of models are natively multimodal AI models that enable text and multimodal experiences. These models leverage a mixture-of-experts architecture to offer industry-leading performance in text and image understanding.	ibmwxLlama4Scout17B16EInstruct
+    llama-4-scout-17b-16e-instruct-int4
+
+    Status: Available
+    	The Llama 4 collection of models are natively multimodal AI models that enable text and multimodal experiences. These models leverage a mixture-of-experts architecture to offer industry-leading performance in text and image understanding.	ibmwxLlama4Scout17b16eInstructInt4
+    llama-3-3-70b-instruct
+
+    Status: Available
+    	A state-of-the-art refresh of the Llama 3.1 70B Instruct model that uses the latest advancements in post-training techniques.	ibmwxLlama3370BInstruct
+    llama-3-2-1b-instruct
+
+    Status: Available
+    	A pretrained and fine-tuned generative text model with 1 billion parameters, optimized for multilingual dialogue use cases and code output.	ibmwxLlama321bInstruct
+    llama-3-2-3b-instruct
+
+    Status: Available
+    	A pretrained and fine-tuned generative text model with 3 billion parameters, optimized for multilingual dialogue use cases and code output.	ibmwxLlama323bInstruct
+    llama-3-2-11b-vision-instruct
+
+    Status: Available
+    	A pretrained and fine-tuned generative text model with 11 billion parameters, optimized for multilingual dialogue use cases and code output.	ibmwxLlama3211bVisionInstruct
+    llama-3-2-90b-vision-instruct
+
+    Status: Available
+    	A pretrained and fine-tuned generative text model with 90 billion parameters, optimized for multilingual dialogue use cases and code output.	ibmwxLlama3290bVisionInstruct
+    llama-guard-3-11b-vision
+
+    Status: Available
+    	A pretrained and fine-tuned generative text model with 11 billion parameters, optimized for multilingual dialogue use cases and code output.	ibmwxLlamaGuard311bVision
+    llama-3-1-8b-instruct
+
+    Status: Available
+    	An auto-regressive language model that uses an optimized transformer architecture.	ibmwxLlama318bInstruct
+    llama-3-1-70b-instruct
+
+    Status: Available
+    	An auto-regressive language model that uses an optimized transformer architecture.	ibmwxLlama3170bInstruct
+    llama-3-405b-instruct
+
+    Status: Withdrawn
+    	Meta's largest open-sourced foundation model to date, with 405 billion parameters, and optimized for dialogue use cases.	ibmwxLlama3405bInstruct
+    llama-2-13b-chat
+
+    Status: Withdrawn
+    	General use with zero- or few-shot prompts. Optimized for dialogue use cases.	ibmwxMetaLlamaLlama213bChat
+    ministral-8b-instruct
+
+    Status: Available
+    	Ideal for complex tasks that require large reasoning capabilities or are highly specialized.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxMinistral8BInstruct
+    ministral-14b-instruct-2512
+
+    Status: Available
+
+    5.3.1 and later
+    	The ministral-14b-instruct-2512 is the largest foundation model in the Ministral 3 family from Mistral AI. The model offers frontier capabilities and performance comparable to its larger counterpart, the mistral-small-3-2-24b-instruct-2506 model.	ibmwxMinistral14BInstruct2512
+    mistral-medium-2505
+
+    Status: Available
+    	Mistral Medium 3 features multimodal capabilities and an extended context length of up to 128k. The model can process and understand visual inputs, long documents and supports many languages.	ibmwxMistralMedium2505
+    mistral-small-3-1-24b-instruct-2503
+
+    Status: Available
+    	Building upon Mistral Small 3 (2501), Mistral Small 3.1 (2503) adds state-of-the-art vision understanding and enhances long context capabilities and is suitable for function calling and agents.	ibmwxMistralSmall3124BInstruct2503
+    mistral-small-3-2-24b-instruct-2506
+
+    Status: Available
+    	The mistral-small-3-2-24b-instruct-2506 foundation model is an enhancement to mistral-small-3-1-24b-instruct-2503, with better instruction following and tool calling performance. 	ibmwxMistralSmall3224BInstruct2506
+    mistral-small-24b-instruct-2501
+
+    Status: Withdrawn
+    	Mistral Small 3 (2501) sets a new benchmark in the small Large Language Models category with less than 70 billion parameters. With a size of 24 billion parameters, the model achieves state-of-the-art capabilities comparable to larger models.	ibmwxMistralSmall24BInstruct2501
+    mistral-small-instruct
+
+    Status: Withdrawn
+    	Ideal for complex tasks that require large reasoning capabilities or are highly specialized.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxMistralSmallInstruct
+    mistral-large-instruct-2411
+
+    Status: Available
+    	The most advanced Large Language Model (LLM) developed by Mistral Al with state-of-the-art reasoning capabilities that can be applied to any language-based task, including the most sophisticated ones.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxMistralLargeInstruct2411
+    mistral-large-2512
+
+    Status: Available
+
+    5.3.1 and later
+    	The mistral-large-2512 foundation model, also known as Mistral Large 3, is a state-of-the-art general-purpose multimodal granular mixture-of-experts model with 41 billion active parameters and 675 billion total parameter. The model is trained from the ground up with 3000 NVIDIA H200 GPUs.	ibmwxMistralLarge2512
+    mistral-large
+
+    Status: Withdrawn
+    	A large language model developed by Mistral Al with state-of-the-art reasoning capabilities that can be applied to any language-based task, including the most sophisticated ones.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxMistralLarge
+    mistral-medium-2505
+
+    Status: Available
+    	Mistral Medium 3 features multimodal capabilities and an extended context length of up to 128k. The model can process and understand visual inputs, long documents and supports many languages.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxMistralMedium2505
+    mixtral-8x7b-instruct-v01
+
+    Status: Withdrawn
+    	The Mixtral-8x7B Large Language Model (LLM) is a pretrained generative Sparse Mixture of Experts. 	ibmwxMistralaiMixtral8x7bInstructv01
+    pixtral-large-instruct-2411
+
+    Status: Available
+    	A 124 billion multimodal model built on top of Mistral Large 2, and demonstrates frontier-level image understanding.
+    Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+    	ibmwxPixtralLargeInstruct
+    pixtral-12b
+
+    Status: Deprecated
+    	A 12 billion parameter model pretrained and fine-tuned for generative tasks in text and image domains. The model is optimized for multilingual use cases and provides robust performance in creative content generation.	ibmwxPixtral12b
+    voxtral-small-24b-2507
+
+    Status: Available
+    	Voxtral Small is an enhancement of Mistral Small 3.1, incorporating state-of-the-art audio capabilities and text performance, capable of processing up to 30 minutes of audio.	ibmwxVoxtralSmall24B2507
+Embedding models
+    Model
+    	
+    Description
+    	
+    Image group
+    all-minilm-l6-v2
+
+    Status: Available
+    	Use all-minilm-l6-v2 as a sentence and short paragraph encoder. Given an input text, the model generates a vector that captures the semantic information in the text.	ibmwxAllMinilmL6V2
+    all-minilm-l12-v2
+
+    Status: Available
+    	Use all-minilm-l12-v2 as a sentence and short paragraph encoder. Given an input text, the model generates a vector that captures the semantic information in the text.	ibmwxAllMinilmL12V2
+    granite-embedding-107m-multilingual
+
+    Status: Available
+    	A 107 million parameter model from the Granite Embeddings suite provided by IBM. The model can be used to generate high quality text embeddings for a given input like a query, passage, or document.	ibmwxGranite107MMultilingualRtrvr
+    granite-embedding-278m-multilingual
+
+    Status: Available
+    	A 278 million parameter model from the Granite Embeddings suite provided by IBM. The model can be used to generate high quality text embeddings for a given input like a query, passage, or document.	ibmwxGranite278MMultilingualRtrvr
+    granite-embedding-english-reranker-r2
+
+    Status: Available
+    	A 149 million parameter model from the Granite Embeddings suite provided by IBM. The model has been trained for passage reranking, based on the granite-embedding-english-r2 to use in RAG pipelines. 	ibmwxGraniteEmbeddingEnglishRerankerR2
+    multilingual-e5-large
+
+    Status: Available
+    	An embedding model built by Microsoft and provided by Hugging Face. The multilingual-e5-large model is useful for tasks such as passage or information retrieval, semantic similarity, bitext mining, and paraphrase retrieval.	ibmwxMultilingualE5Large
+    slate-30m-english-rtrvr
+
+    Status: Available
+    	The IBM provided slate embedding models are built to generate embeddings for various inputs such as queries, passages, or documents.	ibmwxSlate30mEnglishRtrvr
+    slate-125m-english-rtrvr
+
+    Status: Available
+    	The IBM provided slate embedding models are built to generate embeddings for various inputs such as queries, passages, or documents.	ibmwxSlate125mEnglishRtrvr
+Reranker models
+    Model
+    	
+    Description
+    	
+    Image group
+    ms-marco-MiniLM-L-12-v2
+
+    Status: Available
+    	A reranker model built by Microsoft and provided by Hugging Face. Given query text and a set of document passages, the model ranks the list of passages from most-to-least related to the query.	ibmwxMsMarcoMinilmL12V2
+Text extraction models
+    Model
+    	
+    Description
+    	
+    Image group
+    wdu
+
+    Status: Available
+    	A set of natural language text processing models that are represented by the "wdu" identifier.	The models are always included when you mirror the images for watsonx.ai.
+Time series models
+    Model
+    	
+    Description
+    	
+    Image group
+    granite-ttm-512-96-r2
+
+    Status: Available
+    	The Granite time series models are compact pretrained models for multivariate time series forecasting from IBM Research, also known as Tiny Time Mixers (TTM). The models work best with data points in minute or hour intervals and generate a forecast dataset with 96 data points per channel by default. 	ibmwxGraniteTimeseriesTtmV1
+    granite-ttm-1024-96-r2
+
+    Status: Available
+    	The Granite time series models are compact pretrained models for multivariate time series forecasting from IBM Research, also known as Tiny Time Mixers (TTM). The models work best with data points in minute or hour intervals and generate a forecast dataset with 96 data points per channel by default. 	ibmwxGraniteTimeseriesTtmV1
+    granite-ttm-1536-96-r2
+
+    Status: Available
+    	The Granite time series models are compact pretrained models for multivariate time series forecasting from IBM Research, also known as Tiny Time Mixers (TTM). The models work best with data points in minute or hour intervals and generate a forecast dataset with 96 data points per channel by default. 	ibmwxGraniteTimeseriesTtmV1
+Foundation models available for tuning
+    Model
+    	
+    Description
+    	
+    Image group
+    granite-3-1-8b-base
+
+    Status: Available
+    	Granite 3.1 8b base is a pretrained autoregressive foundation model with a context length of 128k intended for tuning.
+
+    Tuning method: Full fine tuning, LoRA fine tuning
+    	ibmwxGranite318BBase
+    llama-3-1-8b-instruct
+
+    Status: Available
+    	An auto-regressive language model that uses an optimized transformer architecture.
+
+    Tuning method: Full fine tuning, LoRA fine tuning
+    	ibmwxLlama318bInstruct
+    llama-3-1-70b-instruct
+
+    Status: Available
+    	An auto-regressive language model that uses an optimized transformer architecture.
+
+    Tuning method: Full fine tuning, LoRA fine tuning
+    	ibmwxLlama3170bInstruct
+    llama-3-1-70b-gptq
+
+    Status: Available
+    	Llama 3.1 70b is a pretrained generative text base model with 70 billion parameters, optimized for multilingual dialogue use cases and code output.
+
+    Tuning method: QLoRA fine tuning
+    	ibmwxLlama3170BGptq
+
+Foundation models for watsonx Assistant
+
+You can choose which foundation models you mirror based on the features that you want to use:
+Model
+	
+Features the model provides
+	
+Image group
+ibm-granite-8b-unified-api-model-v2	
+
+    Rewrite user questions to an understood format for conversational search
+    Gather information to fill in variables in custom actions
+
+	
+
+Not applicable.
+
+This model is automatically mirrored when you mirror the images for watsonx Assistant.
+granite-3-8b-instruct	
+
+    Answer conversational search questions
+
+	ibmwxGranite38BInstruct
+llama-3-1-70b-instruct	
+
+    Rewrite user questions to an understood format for conversational search
+    Answer conversational search questions
+    Gather information to fill in variables in custom actions
+
+	ibmwxLlama3170bInstruct
+llama-3-3-70b-instruct
+
+5.3.1 and later This model can be used only with IBM Software Hub Version 5.3.1 or later.
+	
+
+    Rewrite user questions to an understood format for conversational search
+    Answer conversational search questions
+    Gather information to fill in variables in custom actions
+
+	ibmwxLlama3370BInstruct
+Foundation models for watsonx BI
+
+You must mirror the required foundation models.
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-8b-instruct	Provides recommendations, insights, and summaries for your governed business data.	granite-3-8b-instruct
+slate-30m-english-rtrvr	Finds semantically similar assets, metrics, columns, questions, and filter values to answer business questions.	ibmwxSlate30mEnglishRtrvr
+Foundation models for watsonx Code Assistant
+
+You must mirror the required foundation models.
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-3-8b-instruct	Programming assistance in languages other than Java.	ibmwxGranite338BInstruct
+ibm-granite-20b-code-javaenterprise-v2	Programming assistance in Java.	Not applicable.
+
+This model is automatically mirrored when you mirror the images for watsonx Code Assistant.
+ms-marco-MiniLM-L-12-v2	A reranker model built by Microsoft and provided by Hugging Face. Given query text and a set of document passages, the model ranks the list of passages from most-to-least related to the query.	ibmwxMsMarcoMinilmL12V2
+Foundation models for watsonx Code Assistant for Z Understand
+
+5.3.0 In IBM Software Hub Version 5.3.0, the required model is automatically mirrored.
+
+5.3.1 and later In IBM Software Hub Version 5.3.1 and later, you must mirror the required models.
+Model
+	
+Features the model provides
+	
+Image group
+mistral-medium-2508 	
+
+    Answer chat queries about the application
+    Identify business rules
+    Generate natural language descriptions for the data dictionary
+
+Attention: You must purchase the Mistral AI with IBM license separately to download and use this model.
+	ibmwxMistralMedium2508
+ms-marco-MiniLM-L-12-v2	
+
+    Ensure that relevant context is provided to the foundation model
+
+	ibmwxMsMarcoMinilmL12V2
+slate-125m-english-rtrvr	
+
+    Create embeddings
+    Enable semantic search
+
+	ibmwxSlate125mEnglishRtrvr
+Foundation models for watsonx.data Premium
+
+You must mirror all of the required models.
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-2b-instruct	
+
+    Ingestion
+    Text to SQL
+    Retrieval search
+
+	ibmwxGranite32BInstruct
+llama-3-3-70b-instruct	
+
+    Ingestion
+    Text to SQL
+    Retrieval search
+
+	ibmwxLlama3370BInstruct
+mistral-small-3-1-24b-instruct-2503 	
+
+    Ingestion
+    Text to SQL
+
+	ibmwxMistralSmall3124BInstruct2503
+Foundation models for watsonx.data intelligence
+
+If you plan to enable gen AI based features on CPU or GPU, you must mirror the specified model. (You do not need to mirror the specified model if you plan to connect to a remote instance of watsonx.ai where the model is running.)
+Model
+	
+Features the model provides
+	
+Image group
+granite-3-8b-instruct	Gen AI metadata expansion	ibmwxGranite38BInstruct
+Foundation models for watsonx Orchestrate
+
+You can choose which foundation models you mirror based on the features that you want to use:
+Model
+	
+Features the model provides
+	
+Image group
+ibm-granite-8b-unified-api-model-v2	
+
+    Rewrite user questions to an understood format for conversational search
+    Gather information to fill in variables in custom actions
+
+	Not applicable.
+
+This model is automatically mirrored when you mirror the images for watsonx Orchestrate.
+granite-3-8b-instruct	
+
+    Answer conversational search questions
+
+	ibmwxGranite38BInstruct
+llama-3-1-70b-instruct	
+
+    Rewrite user questions to an understood format for conversational search
+    Answer conversational search questions
+    Gather information to fill in variables in custom actions
+    Select, connect, and coordinate multiple tools or APIs by using agentic AI
+    Important: If you plan to install this model, you must also mirror the slate-30m-english-rtrvr model.
+
+	ibmwxLlama3170bInstruct
+llama-3-2-90b-vision-instruct	
+
+    Rewrite user questions to an understood format for conversational search
+    Answer conversational search questions
+    Gather information to fill in variables in custom actions
+    Select, connect, and coordinate multiple tools or APIs by using agentic AI
+    Important: If you plan to install this model, you must also mirror the slate-30m-english-rtrvr model.
+
+	ibmwxLlama3290bVisionInstruct
+slate-30m-english-rtrvr	Semantic search of the watsonx Orchestrate catalog.
+Remember: This model is required if you plan to install either of the following models:
+
+    llama-3-1-70b-instruct
+    llama-3-2-90b-vision-instruct
+
+	ibmwxSlate30mEnglishRtrvr
+What to do next
+
+Now that you've identified which models and optional images to mirror, you're ready to complete Updating your environment variables script (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Collecting information required to upgrade IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Previous topic:
+Determining which components to upgrade (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Updating your environment variables script (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+
+    On this page
+    About this task
+    Procedure
+    Models for IBM Knowledge Catalog Premium
+    Models for IBM Knowledge Catalog Standard
+    Optional images for Orchestration Pipelines
+    Optional images for Watson Machine Learning
+    Models for Watson Speech to Text
+    Models for Watson Text to Speech
+    Models for watsonx.ai
+    Foundation models for watsonx Assistant
+    Foundation models for watsonx BI
+    Foundation models for watsonx Code Assistant
+    Foundation models for watsonx Code Assistant for Z Understand
+    Foundation models for watsonx.data Premium
+    Foundation models for watsonx.data intelligence
+    Foundation models for watsonx Orchestrate
+    What to do next
+

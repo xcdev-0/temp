@@ -1,0 +1,380 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                        Mirroring images directly to the private container registry
+                        Mirroring images using an intermediary container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Mirroring images using an intermediary container registry (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+If your client workstation cannot connect to the internet and to the private container registry, you must mirror images to an intermediary container registry before you can mirror the images to your private container registry.
+
+If your client workstation can connect to the internet and to the private container registry, see Mirroring images directly to the private container registry.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are here icon. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Registry administrator A registry administrator or a user with permissions to push images to the private container registry must complete this task.
+When do you need to complete this task?
+
+    If you pull images from a private container registry, you must complete this task before you upgrade IBM® Software Hub.
+
+    If you have multiple instances of IBM Software Hub on your cluster, you can either:
+
+        One-time setup Minimize the number of times you mirror the software images by:
+            Identifying all of the instances of IBM Software Hub on the cluster.
+            Identifying all of the components that are installed in each instance.
+            Specifying all of the components for all of the instances when you mirror the images.
+        Repeat as needed Mirror the images for one instance at a time.
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written using the installation environment variables. Ensure that you added the new environment variables from Updating your environment variables script.
+
+In addition, ensure that you source the environment variables before you run the commands in this task.
+Before you mirror the images to the private container registry:
+
+    Ensure that you have sufficient space for the images that you plan to mirror. For information about approximate image sizes, see Hardware requirements.
+    If you plan to install a service with a dependency on the Inference foundation models (ibm-watsonx-ai-ifm) component:
+        Ensure that Skopeo is installed on the client workstation:
+
+        yum install skopeo
+
+        Ensure that you have your Red Hat® username and password. (The credentials that you use to authenticate to https://access.redhat.com)
+        Set the REDHAT_ACCESS_USERNAME environment variable to your Red Hat username:
+
+        export REDHAT_ACCESS_USERNAME=<username>
+
+        Set the REDHAT_ACCESS_PASSWORD environment variable the password associated with your Red Hat username:
+
+        export REDHAT_ACCESS_PASSWORD=<password>
+
+About this task
+Use the cpd-cli manage commands to:
+
+    Mirror the images from the IBM Entitled Registry to an intermediary container registry on the client workstation.
+    Mirror the images from the intermediary container registry to the private container registry.
+
+The cpd-cli manage mirror-images command automatically sets up an intermediary container registry on the client workstation. The address of the intermediary container registry is 127.0.0.1:12443.
+
+You must be able to move the intermediary container registry behind your firewall.
+The following steps assume that the following statements are true:
+
+    You will mirror all of the components in a single step.
+
+    The components that are mirrored are determined by the ${COMPONENTS} variable, from the installation environment variables script.
+
+    If you want to mirror a specific component instead of multiple components, you can export COMPONENTS with the appropriate component ID.
+    You identified any models or optional images that you need to mirror
+
+    The models and optional images that are mirrored are determined by the ${IMAGE_GROUPS} variable, from the installation environment variables script.
+
+    If you don't need to mirror any models or optional images, run the commands that do not include the ${IMAGE_GROUPS} variable.
+
+Procedure
+
+    From a client workstation that can connect to the internet:
+        Log in to the IBM Entitled Registry registry:
+
+        cpd-cli manage login-entitled-registry \
+        ${IBM_ENTITLEMENT_KEY}
+
+        Confirm that you have access to the images that you want to mirror from the IBM Entitled Registry:
+            Inspect the IBM Entitled Registry:
+            Tip: If you want to validate that you have access to the images for a specific component, you can run the following command before you run the list-images command:
+
+            export COMPONENTS=<component-ID>
+
+            Run the appropriate command for your environment:
+            You already have the CASE packages on the client workstation
+
+            cpd-cli manage list-images \
+            --components=${COMPONENTS} \
+            --release=${VERSION} \
+            --patch_id=${PATCH_ID} \
+            --inspect_source_registry=true
+
+            Download CASE packages from GitHub (github.com/IBM)
+
+            cpd-cli manage list-images \
+            --components=${COMPONENTS} \
+            --release=${VERSION} \
+            --patch_id=${PATCH_ID} \
+            --inspect_source_registry=true
+
+            Download CASE packages from the IBM Cloud Pak Open Container Initiative repository
+
+            The output is saved to the list_images.csv file in the work/offline/${VERSION} directory.
+            Check the output for errors:
+
+            grep "level=fatal" list_images.csv
+
+            The command returns images that failed because of authorization errors or network errors.
+        EDB Postgres Standard users only. If you purchased EDB Postgres Standard, run the following command to remove the EDB Postgres Enterprise images from the list of images that will be mirrored to the private container registry:
+
+        Workstations that use the default cpd-cli-workspace/olm-utils-workspace/work directory
+
+            sed -i -e '/edb-postgres-advanced/d' ./cpd-cli-workspace/olm-utils-workspace/work/offline/${VERSION}/.ibm-pak/data/cases/ibm-cpd-edb/*/ibm-cpd-edb-*-images.csv
+
+        Workstations that use the CPD_CLI_MANAGE_WORKSPACE environment variable
+
+            sed -i -e '/edb-postgres-advanced/d' ${CPD_CLI_MANAGE_WORKSPACE}/work/offline/${VERSION}/.ibm-pak/data/cases/ibm-cpd-edb/*/ibm-cpd-edb-*-images.csv
+
+        Watson Studio users only. If you are mirroring the images for Watson Studio, you can remove the following images if you don't need them:
+        GPU images
+
+        Pre-trained NLP models
+
+        Mirror the images to the intermediary container registry.
+
+        The command automatically sets up an intermediary container registry on the client workstation. The address of the intermediary container registry is 127.0.0.1:12443.
+        Tip: Determine whether you need to modify the behavior of this command:
+            By default, this command mirrors only the images that are needed for your cluster architecture. If you want to mirror the images for all supported architectures, remove the --arch=${IMAGE_ARCH} option.
+            This command mirrors the images for all of the components that are specified in the ${COMPONENTS} environment variable. If you want to mirror images for a specific component, you can run export COMPONENTS=<component-ID> before you run the command.
+        You need to mirror models or optional images
+
+        You don't need to mirror models or optional images
+
+        For each component, the command generates a log file in the work directory.
+        Tip: Run the following command to print out any errors in the log files:
+
+        grep "error" mirror_*.log
+
+        Confirm that the images were mirrored to the intermediary container registry:
+            Inspect the contents of the intermediary container registry:
+
+            cpd-cli manage list-images \
+            --components=${COMPONENTS} \
+            --release=${VERSION} \
+            --patch_id=${PATCH_ID} \
+            --target_registry=127.0.0.1:12443 \
+            --case_download=false
+
+            The output is saved to the list_images.csv file in the work/offline/${VERSION} directory.
+            Check the output for errors:
+
+            grep "level=fatal" list_images.csv
+
+            The command returns images that are missing or that cannot be inspected.
+        If you plan to install a service with a dependency on the Inference foundation models (ibm-watsonx-ai-ifm) component, mirror the required vLLM images to the intermediary container registry.
+
+        The images that you mirror depend on the models that you plan to install.
+
+        Mistral AI models
+            If you plan to install any of the following Mistral AI models, you must mirror the required vLLM image from the IBM Entitled Registry:
+                codestral-22b
+                codestral-2501
+                ministral-8b-instruct
+                mistral-large
+                mistral-large-instruct-2411
+                mistral-small-instruct
+                pixtral-large-instruct-2411
+
+            skopeo copy --all \
+            --src-username cp \
+            --src-password ${IBM_ENTITLEMENT_KEY} \
+            --src-tls-verify=false \
+            --dest-tls-verify=false \
+            docker://cp.icr.io/cp/cpd/vllm@sha256:cc95bc7619549a5fb9342f8c41c613df5cd65b4e1f90b408db062559a2fdcff9 \
+            docker://127.0.0.1:12443/cp/cpd/vllm@sha256:cc95bc7619549a5fb9342f8c41c613df5cd65b4e1f90b408db062559a2fdcff9
+
+        All other models
+            For all other models, you must mirror the RHOAI vLLM CUDA image from registry.redhat.io:
+                Log in to registry.redhat.io:
+
+                skopeo login registry.redhat.io \
+                --username ${REDHAT_ACCESS_USERNAME} \
+                --password ${REDHAT_ACCESS_PASSWORD}
+
+                Copy the image to the tmp/rhoai-new directory on the client workstation:
+
+                skopeo copy --all 
+                docker://registry.redhat.io/rhoai/odh-vllm-cuda-rhel9@sha256:fb84fbf103bf450ef5b060fc5f21a9cf16b166dba207a3c50aa91bccd919d604 \
+                dir://tmp/rhoai-new
+
+    Move the intermediary container registry behind the firewall.
+    Options for moving the intermediary container registry
+    	
+    	
+    	
+
+    	
+
+    If you mirrored the RHOAI vLLM CUDA image to the tmp/rhoai-new directory, move the directory behind the firewall.
+    From a client workstation that connect to private container registry:
+        Log in to the private container registry.
+
+        The following command assumes that you are using private container registry that is secured with credentials:
+
+        cpd-cli manage login-private-registry \
+        ${PRIVATE_REGISTRY_LOCATION} \
+        ${PRIVATE_REGISTRY_PUSH_USER} \
+        ${PRIVATE_REGISTRY_PUSH_PASSWORD}
+
+        If your private registry is not secured omit the following arguments:
+            ${PRIVATE_REGISTRY_PUSH_USER}
+            ${PRIVATE_REGISTRY_PUSH_PASSWORD}
+        Mirror the images from the intermediary container registry to the private container registry.
+        Tip: Determine whether you need to modify the behavior of this command:
+            By default, this command mirrors only the images that are needed for your cluster architecture. If you want to mirror the images for all supported architectures, remove the --arch=${IMAGE_ARCH} option.
+            This command mirrors the images for all of the components that are specified in the ${COMPONENTS} environment variable. If you want to mirror images for a specific component, you can run export COMPONENTS=<component-ID> before you run the command.
+        You need to mirror models or optional images
+
+        cpd-cli manage mirror-images \
+        --components=${COMPONENTS} \
+        --groups=${IMAGE_GROUPS} \
+        --release=${VERSION} \
+        --patch_id=${PATCH_ID} \
+        --source_registry=127.0.0.1:12443 \
+        --target_registry=${PRIVATE_REGISTRY_LOCATION} \
+        --arch=${IMAGE_ARCH} \
+        --case_download=false
+
+        You don't need to mirror models or optional images
+
+        cpd-cli manage mirror-images \
+        --components=${COMPONENTS} \
+        --release=${VERSION} \
+        --patch_id=${PATCH_ID} \
+        --source_registry=127.0.0.1:12443 \
+        --target_registry=${PRIVATE_REGISTRY_LOCATION} \
+        --arch=${IMAGE_ARCH} \
+        --case_download=false
+
+        For each component, the command generates a log file in the work directory.
+        Confirm that the images were mirrored to the private container registry:
+            Inspect the contents of the private container registry:
+
+            cpd-cli manage list-images \
+            --components=${COMPONENTS} \
+            --release=${VERSION} \
+            --patch_id=${PATCH_ID} \
+            --target_registry=${PRIVATE_REGISTRY_LOCATION} \
+            --case_download=false
+
+            The output is saved to the list_images.csv file in the work/offline/${VERSION} directory.
+            Check the output for errors:
+
+            grep "level=fatal" list_images.csv
+
+            The command returns images that are missing or that cannot be inspected.
+        If you plan to install a service with a dependency on the Inference foundation models (ibm-watsonx-ai-ifm) component, mirror the required vLLM images from the intermediary container registry to the private container registry.
+
+        The images that you mirror depend on the models that you plan to install.
+
+        Mistral AI models
+            If you plan to install any of the following Mistral AI models, you must mirror the required vLLM image to the private container registry:
+                codestral-22b
+                codestral-2501
+                ministral-8b-instruct
+                mistral-large
+                mistral-large-instruct-2411
+                mistral-small-instruct
+                pixtral-large-instruct-2411
+
+            skopeo copy --all \
+            --src-tls-verify=false \
+            --dest-username ${PRIVATE_REGISTRY_PUSH_USER} \
+            --dest-password ${PRIVATE_REGISTRY_PUSH_PASSWORD} \
+            --dest-tls-verify=false \
+            docker://127.0.0.1:12443/cp/cpd/vllm@sha256:cc95bc7619549a5fb9342f8c41c613df5cd65b4e1f90b408db062559a2fdcff9 \
+            docker://${PRIVATE_REGISTRY_LOCATION}/cp/cpd/vllm@sha256:cc95bc7619549a5fb9342f8c41c613df5cd65b4e1f90b408db062559a2fdcff9
+
+        All other models
+            For all other models, you must mirror the RHOAI vLLM CUDA image to the private container registry:
+
+            skopeo copy --all \
+            --src-tls-verify=false \
+            --dest-username ${PRIVATE_REGISTRY_PUSH_USER} \
+            --dest-password ${PRIVATE_REGISTRY_PUSH_PASSWORD} \
+            --dest-tls-verify=false \
+            dir://tmp/rhoai-new \
+            docker://${PRIVATE_REGISTRY_LOCATION}/rhoai/odh-vllm-cuda-rhel9@sha256:fb84fbf103bf450ef5b060fc5f21a9cf16b166dba207a3c50aa91bccd919d604
+
+Results
+The images for your architecture are mirrored to the private container registry.
+Note: Some components, such as the cpfs component, provide only multi-arch images. For components with multi-arch images, all of the images are mirrored to the private container registry.
+What to do next
+Now that you've mirrored the images to your private container registry, you're ready to complete Pulling the olm-utils-v4 image from the private container registry (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Mirroring images to a private container registry (Upgrading from Version 5.1 to Version 5.3)
+Related reference
+
+    cpd-cli manage login-entitled-registry
+    cpd-cli manage list-images
+    cpd-cli manage mirror-images
+    cpd-cli manage login-private-registry
+
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    About this task
+    Procedure
+    Results
+    What to do next
+

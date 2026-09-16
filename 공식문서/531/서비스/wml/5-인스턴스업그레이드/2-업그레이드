@@ -1,0 +1,488 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                        Upgrading operators for services that require GPUs
+                        Upgrading Red Hat OpenShift AI
+                        Upgrading Multicloud Object Gateway
+                        Upgrading Red Hat OpenShift Serverless Knative Eventing
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                    Checking the health of your cluster
+                    Updating cluster-scoped resources for the instance
+                    Upgrading the IBM Events Operator
+                    Reauthorizing the NamespaceScope operator with the minimum RBAC
+                    Reauthorizing a user with the minimum RBAC
+                    Applying your entitlements
+                        Applying your entitlements without node pinning
+                        Applying your entitlements and pinning pods to nodes
+                Upgrading an instance of IBM Software Hub
+                    Creating image pull secrets for the instance
+                    Upgrading IBM Software Hub
+                    Updating the cpdbr service
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Upgrading IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+To upgrade an instance of IBM Software Hub, you must grade the required operators and custom resources for the instance.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are here icon. Upgrading an instance
+
+Who needs to complete this task?
+
+    Instance administrator An instance administrator can complete this task.
+When do you need to complete this task?
+
+    Repeat as needed If you have multiple instances of IBM Software Hub on the cluster, complete this task for each instance that you want to upgrade.
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written using the installation environment variables. Ensure that you added the new environment variables from Updating your environment variables script.
+
+In addition, ensure that you source the environment variables before you run the commands in this task.
+
+Service-specific prerequisite tasks
+
+    If you have any of the following services on this instance of IBM Software Hub, complete the required steps before you upgrade IBM Software Hub:
+    watsonx Assistant
+
+    watsonx Code Assistant for Red Hat Ansible Lightspeed
+
+Common core services
+
+    Before you upgrade IBM Software Hub, check for the whether the following pods are running in this instance of IBM Software Hub:
+
+        Check whether the global search pods are running:
+
+        oc get pods --namespace=${PROJECT_CPD_INST_OPERANDS} | grep elasticsea-0ac3
+
+            If the command returns an empty response, proceed to the next step.
+            If the command returns a list of pods, review Upgrades fail when global search is configured incorrectly to determine whether you have any configurations that could cause issues during upgrade.
+        Check whether the catalog-api pods are running:
+
+        oc get pods --namespace=${PROJECT_CPD_INST_OPERANDS} | grep catalog-api
+
+            If the command returns an empty response, you are ready to upgrade IBM Software Hub.
+            If the command returns a list of pods, review the following guidance to determine how long the catalog-api service will be down during upgrade.
+
+        When you upgrade the common core services to IBM Software Hub Version 5.3, the underlying storage for the catalog-api service is migrated to PostgreSQL.
+
+        During the final stages of the migration, the catalog-api service is offline, and services that are dependent on the service are not available. The duration of the migration depends on the number of assets and relationships that are stored in the instance. The duration of the outage depends on the number of databases (projects, catalogs, and spaces) in the instance. In a typical upgrade scenario, the outage should be significantly shorter than the overall migration.
+
+        To determine how many databases will be migrated:
+            Set the INSTANCE_URL environment variable to the URL of IBM Software Hub:
+
+            export INSTANCE_URL=<URL>
+
+            Tip: To get the URL of the web client, run the following command:
+
+            cpd-cli manage get-cpd-instance-details \
+            --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+            Get the credentials for the wdp-service:
+
+            TOKEN=$(oc get -n ${PROJECT_CPD_INST_OPERANDS} secrets wdp-service-id -o yaml | grep service-id-credentials | cut -d':' -f2- | sed -e 's/ //g' | base64 -d)
+
+            Get the number of catalogs in the instance:
+
+            curl -sk -X GET "https://${INSTANCE_URL}/v2/catalogs?limit=10001&skip=0&include=catalogs&bss_account_id=999" -H 'accept: application/json' -H "Authorization: Basic ${TOKEN}" | jq -r '.catalogs | length'
+
+            Get the number of projects in the instance:
+
+            curl -sk -X GET "https://${INSTANCE_URL}/v2/catalogs?limit=10001&skip=0&include=projects&bss_account_id=999" -H 'accept: application/json' -H "Authorization: Basic ${TOKEN}" | jq -r '.catalogs | length'
+
+            Get the number of spaces in the instance:
+
+            curl -sk -X GET "https://${INSTANCE_URL}/v2/catalogs?limit=10001&skip=0&include=spaces&bss_account_id=999" -H 'accept: application/json' -H "Authorization: Basic ${TOKEN}" | jq -r '.catalogs | length'
+
+            Add up the number of catalogs, projects, and spaces returned by the previous commands. Then, use the following table to determine approximately how long the service will be offline during the migration:
+            Databases
+            	
+            Downtime for migration (approximate)
+            Up to 1,000 databases	6 minutes
+            1,001 - 10,000 databases	20 minutes
+            10,001 - 70,000 databases	60 minutes
+        Save the following script on the client workstation as a file named precheck_migration.sh:
+
+        #!/bin/bash
+
+        # Default ranges for couchdb size
+        SMALL=50
+        MEDIUM=100
+        LARGE=200
+
+        echo "Performing pre-migration checks"
+
+        patch_for_small()
+        {
+          echo -e "Run the following command to increase the CPU and memory:\n"
+                  cat << EOF
+        oc patch ccs ccs-cr -n ${PROJECT_CPD_INST_OPERANDS} --type merge --patch '{"spec": {
+          "catalog_api_postgres_migration_threads": 4,
+          "catalog_api_migration_job_resources": { 
+            "requests": {"cpu": "2", "ephemeral-storage": "10Mi", "memory": "2Gi"},
+            "limits": {"cpu": "6", "ephemeral-storage": "1Gi", "memory": "6Gi"}}
+        }}'
+        EOF
+            echo
+            echo "The system is ready for migration. Upgrade your cluster as usual."
+        }
+
+        patch_for_medium()
+        {
+            echo -e "Run the following command to increase the CPU and memory:\n"
+                  cat << EOF
+        oc patch ccs ccs-cr -n ${PROJECT_CPD_INST_OPERANDS} --type merge --patch '{"spec": {
+          "catalog_api_postgres_migration_threads": 6,
+          "catalog_api_migration_job_resources": { 
+            "requests": {"cpu": "3", "ephemeral-storage": "10Mi", "memory": "4Gi"},
+            "limits": {"cpu": "8", "ephemeral-storage": "4Gi", "memory": "8Gi"}}
+        }}'
+        EOF
+            echo
+            echo "The system is ready for migration. Upgrade your cluster as usual."
+        }
+
+        patch_for_large()
+        {
+            echo -e "Run the following command to increase the CPU and memory:\n"
+                  cat << EOF
+        oc patch ccs ccs-cr -n ${PROJECT_CPD_INST_OPERANDS} --type merge --patch '{"spec": {
+          "catalog_api_postgres_migration_threads": 8,
+          "catalog_api_migration_job_resources": { 
+            "requests": {"cpu": "6", "ephemeral-storage": "10Mi", "memory": "6Gi"},
+            "limits": {"cpu": "10", "ephemeral-storage": "6Gi", "memory": "10Gi"}}
+        }}'
+        EOF
+            echo
+            echo "Before you can start the upgrade, you must prepare the system for migration."
+        }
+
+        check_resources(){
+                scale_config=$1
+                pvc_size=$(oc get pvc -n ${PROJECT_CPD_INST_OPERANDS} database-storage-wdp-couchdb-0 --no-headers | awk '{print $4}')
+                size=$(awk '{print substr($0, 1, length($0)-2)}' <<< "$pvc_size")
+
+                if [[ $scale_config == "small" ]];then
+                  if [[ "$size" -le "$SMALL" ]];then
+                    echo "The system is ready for migration. Upgrade your cluster as usual."
+                  elif [ "$size" -ge "$SMALL" ] && [ "$size" -le "$MEDIUM" ];then
+                    patch_for_medium
+                  elif [ "$size" -ge "$MEDIUM" ] && [ "$size" -le "$LARGE" ];then
+                    patch_for_large
+                  else
+                    patch_for_large
+                  fi
+                elif [[ $scale_config == "medium" ]];then
+                  if [[ "$size" -le "$SMALL" ]];then
+                    patch_for_small
+                  elif [ "$size" -ge "$SMALL" ] && [ "$size" -le "$MEDIUM" ];then
+                    echo "The system is ready for migration. Upgrade your cluster as usual."
+                  elif [ "$size" -ge "$MEDIUM" ] && [ "$size" -le "$LARGE" ];then
+                    patch_for_large
+                  else
+                    patch_for_large
+                  fi
+                elif [[ $scale_config == "large" ]];then
+                  if [[ "$size" -le "$SMALL" ]];then
+                    patch_for_small
+                  elif [ "$size" -ge "$SMALL" ] && [ "$size" -le "$MEDIUM" ];then
+                    patch_for_medium
+                  elif [ "$size" -ge "$MEDIUM" ] && [ "$size" -le "$LARGE" ];then
+                    echo "The system is ready for migration. Upgrade your cluster as usual."
+                  else
+                    patch_for_large
+                  fi
+                fi
+        }
+
+        check_upgrade_case(){     
+                echo -e "Checking if automatic upgrade or semi-automatic upgrade is needed"
+                scale_config=$(oc get ccs -n ${PROJECT_CPD_INST_OPERANDS} ccs-cr -o json | jq -r '.spec.scaleConfig')
+
+                # Default case, scale config is set to small
+                if [[ -z "${scale_config}" ]];then
+                  scale_config=small
+                fi
+
+                check_resources $scale_config
+        }
+
+        check_upgrade_case
+
+        Run the precheck_migration.sh to determine whether you can run an automatic migration of the common core services or whether you need to configure common core services to run a semi-automatic migration:
+
+        ./precheck_migration.sh 
+
+        Take the appropriate action based on the message returned by the script:
+        Messages returned by the script
+        	
+        Migration type
+        	
+        What to do next
+        The system is ready for migration. Upgrade your cluster as usual.	Automatic	You are ready to upgrade IBM Software Hub.
+        Important: After you upgrade the services in your environment, ensure that you complete Completing the catalog-api service migration
+        Run the following command to increase the CPU and memory.	Automatic	
+            Run the patch command returned by the script.
+            Upgrade IBM Software Hub.
+        Important: After you upgrade the services in your environment, ensure that you complete Completing the catalog-api service migration
+        The script returns both of the following messages:
+            Run the following command to increase the CPU and memory.
+            Before you can start the upgrade, you must prepare the system for migration.
+        	Semi-automatic	
+            Run the patch command returned by the script.
+            Run the following command to enable semi-automatic migration:
+
+            oc patch ccs ccs-cr \
+            -n ${PROJECT_CPD_INST_OPERANDS} \
+            --type merge \
+            --patch '{"spec": {"use_semi_auto_catalog_api_migration": true}}'
+
+            Upgrade IBM Software Hub.
+        Important: After you upgrade the services in your environment, ensure that you complete Completing the catalog-api service migration
+
+About this task
+
+Use the cpd-cli manage install-components command to upgrade the required operators and custom resources for an instance of IBM Software Hub.
+Note: The install-components command in this topic includes the --run_storage_tests option. It is strongly recommended that you run the command with the --run_storage_tests option to enure that the storage in your environment meets the minimum requirements for performance.
+
+If your storage does not meet the minimum requirements, you can remove the --run_storage_tests option to continue the upgrade. However, your environment is likely to encounter problems because of issues with your storage.
+Procedure
+
+    Log the cpd-cli in to the Red Hat OpenShift® Container Platform cluster:
+
+    ${CPDM_OC_LOGIN}
+
+    Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+    Review the license terms for the software that you plan to install.
+    The licenses are available online. However, some licenses are not included in the get-license command. If you don't see the license that you purchased, you can search for the license on IBM Terms.
+
+    See all available license URLs
+
+        cpd-cli manage get-license \
+        --release=${VERSION}
+
+    See the URL for a specific license
+        Run the appropriate commands based on the license or licenses that you purchased.
+        IBM Cloud Pak for Data Enterprise Edition
+
+        IBM Cloud Pak for Data Standard Edition
+
+        IBM Data Gate for watsonx
+
+        IBM Data Product Hub Cartridge
+
+        Data Replication
+
+        Db2
+
+        IBM Knowledge Catalog Premium
+
+        IBM Knowledge Catalog Standard
+
+        IBM watsonx.ai
+
+        IBM watsonx Code Assistant
+
+        IBM watsonx Code Assistant for Ansible
+
+        IBM watsonx.data
+
+        IBM watsonx.data Premium Edition
+
+    Upgrade the required operators and custom resources for the instance.
+    Tip: Before you run this command against your cluster, you can preview the oc commands that this command will issue on your behalf by running the command with the --preview=true option.
+
+    The oc commands are saved to the preview.sh file in the work directory.
+
+    The command that you run depends on whether the instance includes tethered projects:
+    Instances without tethered projects
+
+    Instances with tethered projects
+
+    Wait for the cpd-cli to return the following message before preceding to the next step:
+
+    [SUCCESS] ... The install-components command ran successfully.
+
+    If you have any custom RSI patches that patch zen pods or IBM Cloud Pak foundational services pods, reapply the patches:
+        Run the following command to get a list of the RSI patches in the operands project:
+
+        cpd-cli manage get-rsi-patch-info \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+        --all
+
+        If there are patches that apply to zen or IBM Cloud Pak foundational services pods, run the following command to apply your custom patches:
+
+        cpd-cli manage apply-rsi-patches \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    Optional: If you want to run a batch upgrade of the services that are installed on the instance, run the install-components command.
+    Tip: Before you run this command against your cluster, you can preview the oc commands that this command will issue on your behalf by running the command with the --preview=true option.
+
+    The oc commands are saved to the preview.sh file in the work directory.
+
+    cpd-cli manage install-components \
+    --license_acceptance=true \
+    --components=${COMPONENTS} \
+    --release=${VERSION} \
+    --patch_id=${PATCH_ID} \
+    --operator_ns=${PROJECT_CPD_INST_OPERATORS} \
+    --instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+    --image_pull_prefix=${IMAGE_PULL_PREFIX} \
+    --image_pull_secret=${IMAGE_PULL_SECRET} \
+    --upgrade=true
+
+    Wait for the cpd-cli to return the following message before preceding to the next step:
+
+    [SUCCESS] ... The install-components command ran successfully.
+
+    Confirm that the status of the operands is Completed:
+
+    cpd-cli manage get-cr-status \
+    --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    Check the health of the resources in the operators project:
+
+    cpd-cli health operators \
+    --operator_ns=${PROJECT_CPD_INST_OPERATORS} \
+    --control_plane_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    Confirm that the health check report returns the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Pod Healthcheck	For pods in the operators project, the status of each required pod is Running.	[SUCCESS]
+    Pod Usage Healthcheck	For pods in the operators project, the resource use for each pod is within the CPU and memory limits.	[SUCCESS]
+    Cluster Service Versions Healthcheck	For cluster service versions (CSVs) in the operators project, the phase of each CSV is Succeeded.	[SUCCESS]
+    Catalog Source Healthcheck	For catalog sources in the operators project, the last observed state of each catalog source is Ready.	[SUCCESS]
+    Install Plan Healthcheck 	For operators in the operators project, the install plan approval for each operator is Automatic. 	[SUCCESS]
+    Subscriptions Healthchec	For subscriptions in the operators project, there is an installed CSV for each subscription.	[SUCCESS]
+    Persistent Volume Claim Healthcheck	For persistent volume claims (PVCs) in the operators project, each PVC is bound.
+    Note: There should not be any PVC in the operators project, so the test should be skipped.
+    	[SKIP...]
+    Deployment Healthcheck	For deployments in the operators project, each deployment has the desired number of replicas. 	[SUCCESS]
+    Namespace Scopes Healthcheck	For the NamespaceScope operator in the operators project, the projects that are specified in the members list exist.	[SUCCESS]
+    Stateful Set Healthcheck	For stateful sets in the operators project, the stateful sets have the desired number of replicas.
+    Note: There should not be any stateful sets in the operators project, so the test should be skipped.
+    	[SKIP...]
+    Common Services Healthcheck	For the common-service commonservice custom resource in the operators project, the phase of the custom resource is Succeeded. 	[SUCCESS]
+    Custom Resource Healthcheck	For any other custom resources in the operators project, the phase of each custom resource is Succeeded.
+    Note: There should not be any other custom resources in the operators project, so the test should be skipped.
+    	[SKIP...]
+    Operand Requests Healthcheck	For operand requests in the operators project, the phase of each operand request is Running,	[SUCCESS]
+    Check the health of the resources in the operands project:
+
+    cpd-cli health operands \
+    --control_plane_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    Confirm that the health check report returns the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Pod Healthcheck	For pods in the operands project, the status of each pod is Running.	[SUCCESS]
+    Pod Usage Healthcheck	For pods in the operands project, the resource use for each pod is within the CPU and memory limits.	[SUCCESS]
+    EDB Cluster Healthcheck	For EDB Postgres clusters in the operands project, the status of each cluster is Cluster in healthy state. 	[SUCCESS]
+    Persistent Volume Claim Healthcheck	For persistent volume claims (PVCs) in the operands project, each PVC is bound.	[SUCCESS]
+    Deployment Healthcheck	For deployments in the operands project, each deployment has the desired number of replicas. 	[SUCCESS]
+    Stateful Set Healthcheck	For stateful sets in the operands project, the stateful sets have the desired number of replicas. 	[SUCCESS]
+    Common Services Healthcheck	For the common-service commonservice custom resource in the operands project, the phase of the custom resource is Succeeded. 	[SUCCESS]
+    Operand Requests Healthcheck	For operand requests in the operands project, the phase of each operand request is Running.	[SUCCESS]
+    Monitor Events Healthcheck	The platform monitors are not generating any Critical events.	[SUCCESS]
+    Custom Resource Healthcheck	For custom resources in the operands project, the phase of each custom resource is Succeeded.	[SUCCESS]
+    Platform Healthcheck	That the pods for required platform microservices are Running. 	[SUCCESS]
+
+What to do next
+
+Now that you've upgraded the IBM Software Hub control plane, you're ready to complete Updating the cpdbr service (Upgrading from Version 5.1 to Version 5.3).
+
+If you don't use the cpdbr service, see Upgrading the IBM Software Hub configuration admission controller webhook (Upgrading from Version 5.1 to Version 5.3)
+Parent topic:
+Upgrading an instance of IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Previous topic:
+Creating image pull secrets for an instance of IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Updating the cpdbr service (Upgrading from Version 5.1 to Version 5.3)
+Related reference
+
+    cpd-cli manage login-to-ocp
+    cpd-cli manage get-license
+    cpd-cli manage setup-instance
+    cpd-cli manage apply-olm
+    cpd-cli manage apply-cr
+    cpd-cli manage get-cr-status
+
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    About this task
+    Procedure
+    What to do next
+

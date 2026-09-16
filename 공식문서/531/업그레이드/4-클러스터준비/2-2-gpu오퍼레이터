@@ -1,0 +1,188 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                        Upgrading operators for services that require GPUs
+                        Upgrading Red Hat OpenShift AI
+                        Upgrading Multicloud Object Gateway
+                        Upgrading Red Hat OpenShift Serverless Knative Eventing
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Upgrading operators for services that require GPUs(Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+If your environment includes services that require GPUs, you might need to upgrade the NVIDIA GPU Operator and the Node Feature Discovery Operator.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are here icon. Preparing the cluster
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Cluster administrator A cluster administrator must complete this task.
+When do you need to complete this task?
+    One-time setup Complete this task if one or more of the following services are installed or will be installed on the cluster:
+    Service
+    	
+    GPU operators
+    IBM Knowledge Catalog Premium	
+
+        Required if you run the models on GPU.
+        Not required if you run the models on:
+            CPU
+            A remote instance of watsonx.ai™
+
+    IBM Knowledge Catalog Standard	
+
+        Required if you run the models on GPU.
+        Not required if you run the models on:
+            CPU
+            A remote instance of watsonx.ai
+
+    Watson Machine Learning	
+
+    Required only if you want to use deep learning or machine learning models that require GPU.
+    Watson Speech services	
+
+    Required only if you want to enable enrichment.
+    Watson Studio Runtimes	
+
+    Required only if you want to use runtimes that require GPU.
+    watsonx.ai	
+
+    Always required.
+    watsonx Assistant	
+
+    Required only if you want to use features that require GPU.
+    watsonx™ BI	
+
+    Always required.
+    watsonx Code Assistant™	
+
+    Always required.
+    watsonx Code Assistant for Red Hat® Ansible® Lightspeed	
+
+    Always required.
+    watsonx Code Assistant for Z	
+
+    Always required.
+    watsonx Code Assistant for Z Agentic 	
+
+    Always required.
+    watsonx Code Assistant for Z Code Explanation	
+
+    Always required.
+    watsonx Code Assistant for Z Code Generation 	
+
+    Always required.
+    watsonx.data™	
+
+    Required only if you want to use Milvus indexes that require GPU.
+    watsonx.data Premium	
+
+    Always required.
+    watsonx.data intelligence	
+
+    Always required.
+    watsonx Orchestrate	
+
+        Required if you run models locally.
+        Not required if you use the AI gateway to access third-party models.
+
+About this task
+
+All of the services that require GPUs require the NVIDIA GPU Operator and the Node Feature Discovery Operator.
+Review the following table to determine which operators you need to upgrade:
+Operator
+	
+Upgrade this operator if...
+Node Feature Discovery Operator	
+
+You upgraded Red Hat OpenShift® Container Platform and the operator is installed with installPlanApproval: Manual.
+NVIDIA GPU Operator	
+
+The version of the operator on your cluster has reached the end of support. For details, see NVIDIA GPU Operator Life Cycle in the
+Procedure
+
+    To upgrade the Node Feature Discovery Operator, follow the appropriate steps for your environment:
+        To upgrade the operator on a cluster that can connect to the internet, complete Installing the Node Feature Discovery OperatorNode Feature Discovery (NFD) in the NVIDIA GPU Operator on Red Hat OpenShift Container Platform documentation.
+        To upgrade the operator on a cluster that is disconnected or air-gapped, complete Deploy GPU Operators in a disconnected or air-gapped environment in the NVIDIA GPU Operator on Red Hat OpenShift Container Platform documentation.
+    To upgrade the NVIDIA GPU Operator, follow the appropriate steps for your environment:
+        To upgrade the operator on a cluster that can connect to the internet, complete Installing the NVIDIA GPU Operator in the NVIDIA GPU Operator on Red Hat OpenShift Container Platform documentation.
+        To upgrade the operator on a cluster that is disconnected or air-gapped, complete Deploy GPU Operators in a disconnected or air-gapped environment in the NVIDIA GPU Operator on Red Hat OpenShift Container Platform documentation.
+
+What to do next
+
+Now that you've upgraded the operators for services that require GPUs, you're ready to complete Upgrading Red Hat OpenShift AI (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Upgrading prerequisite software (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Upgrading Red Hat OpenShift AI (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    About this task
+    Procedure
+    What to do next
+

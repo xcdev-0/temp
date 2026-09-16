@@ -1,0 +1,919 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+        Administering
+            Post-installation setup (Day 1)
+            Ongoing maintenance (Day 2)
+            Managing users
+            Backing up and restoring IBM Software Hub
+                Services that support backup and restore
+                Installing backup and restore software
+                Online backup and restore
+                Offline backup and restore (OADP utility)
+                    Offline backup and restore to the same cluster
+                    Offline backup and restore to a different cluster
+                    Scenario: Backing up and restoring Db2 Warehouse separately from IBM Software Hub
+                Uninstalling
+            Administering IBM Software Hub Control Center
+            IBM Software Hub command-line interface (cpd-cli)
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Offline backup and restore to the same cluster with the IBM Software Hub OADP utility
+Last Updated: 2026-08-26
+
+A Red Hat® OpenShift® Container Platform cluster administrator can create an offline backup and restore it to the same cluster with the IBM Software Hub OADP utility.
+Before you begin
+
+Do the following tasks before you back up and restore a IBM Software Hub deployment.
+
+    Check whether the services that you are using support platform backup and restore by reviewing Services that support backup and restore. You can also run the following command:
+
+    cpd-cli oadp service-registry check \
+    --tenant-operator-namespace ${PROJECT_CPD_INST_OPERATORS} \
+    --verbose \
+    --log-level debug
+
+    Important: The output from the command fails to include the following services even though they support backup and restore:
+        Analytics Engine powered by Apache Spark (analyticsengine)
+        Data Refinery (datarefinery)
+        IBM watsonx™ Orchestrate (watsonx_orchestrate)
+
+    If a service is not supported, check if one of the following alternatives is available:
+        A service might have its own backup and restore process. In such cases, see the links that are provided in the Notes column in Services that support backup and restore.
+        You might be able to migrate service data from one IBM Software Hub installation and to another IBM Software Hub installation with the data export and import utility. Review Services that support cpd-cli export-import.
+    Install the software that is needed to back up and restore IBM Software Hub with the OADP utility.
+
+    For more information, see Installing backup and restore software.
+    Check that your IBM Software Hub deployment meets the following requirements:
+        The minimum deployment profile of IBM Cloud Pak foundational services is Small.
+
+        For more information about sizing IBM Cloud Pak foundational services, see Hardware requirements and recommendations for foundational services.
+        All services are installed at the same IBM Software Hub release.
+
+        You cannot back up and restore a deployment that is running service versions from different IBM Software Hub releases.
+        The control plane is installed in a single project (namespace).
+        The IBM Software Hub instance is installed in zero or more tethered projects.
+        IBM Software Hub operators and the IBM Software Hub instance are in a good state.
+
+Overview
+
+You can create Kopia backups on an S3-compatible object store. Kopia is a file system copying technique that is used by OpenShift API for Data Protection (OADP), based on the Kopia open source project. Under OADP, Kopia backups support producing backups only to S3-compatible object stores.
+
+Backing up an IBM Software Hub deployment and restoring it to the same cluster involves the following high-level steps:
+
+    Preparing to back up IBM Software Hub
+    Creating an offline backup
+    Cleaning up the cluster before restoring IBM Software Hub
+    Restoring IBM Software Hub
+    Completing post-restore tasks
+
+1. Preparing to back up IBM Software Hub
+
+Complete the following prerequisite tasks before you create an offline backup. Some tasks are service-specific, and need to be done only when those services are installed.
+1.1 Creating environment variables
+
+Create the following environment variables so that you can copy commands from the documentation and run them without making any changes.
+Environment variable
+	
+Description
+OC_LOGIN	Shortcut for the oc login command.
+CPDM_OC_LOGIN	Shortcut for the cpd-cli manage login-to-ocp command.
+PROJECT_CPD_INST_OPERATORS	The project where the IBM Software Hub instance operators are installed.
+PROJECT_CPD_INST_OPERANDS	The project where IBM Software Hub control plane and services are installed.
+PROJECT_SCHEDULING_SERVICE	The project where the scheduling service is installed.
+
+This environment variable is needed only when the scheduling service is installed.
+PROJECT_CPD_INSTANCE_TETHERED_LIST	The list of tethered projects.
+
+This environment variable is needed only when some services are installed in tethered projects.
+PROJECT_CPD_INSTANCE_TETHERED	The tethered project where a service is installed.
+
+This environment variable is needed only when a service is installed in a tethered project.
+OADP_PROJECT	The project (namespace) where OADP is installed.
+TENANT_OFFLINE_BACKUP_NAME	The name that you want to use for the offline backup.
+1.2 Set up environment variable for multi-AZ on a Red Hat OpenShift Service on AWS (ROSA) cluster
+
+If you have a multi-Availability Zones (multi-AZ) OpenShift environment, create the CPDBR_MAX_NODE_LIMITED_VOLUMES_PER_POD environment variable prior to taking an offline backup.
+Tip: For more information about this environment variable, see Offline backup fails due to cpdbr-vol-mnt pod stuck in Pending state.
+
+Run the following command to create the environment variable:
+
+export CPDBR_MAX_NODE_LIMITED_VOLUMES_PER_POD=1
+
+1.3 Checking the version of OADP utility components
+Check that you installed the correct version of OADP components.
+
+    Check that the OADP operator version is 1.4.x:
+
+    oc get csv -A | grep "OADP Operator"
+
+    Check that the cpd-cli oadp version is 5.3.0:
+
+    cpd-cli oadp version
+
+1.4 Clean up the IBM Events Operator Subscription
+
+5.3.0 If you upgraded to IBM Software Hub 5.3.0 using the non-OLM path, a legacy IBM Events Operator Subscription remains in the operator namespace. This object has the label operator.ibm.com/opreq-control: "true" and several cpd.* annotations, which can cause the cpdbr service to skip it.
+Before your first backup, run the following command one time to remove the legacy IBM Events Operator Subscription:
+
+oc patch subscriptions.operators.coreos.com ibm-events-operator \
+-n ${PROJECT_CPD_INST_OPERATORS} \
+--type merge \
+-p '{"metadata":{"annotations":null,"labels":{"operator.ibm.com/opreq-control":null}}}'
+
+1.5 Optional: Estimating how much storage to allocate for backups
+
+You can estimate the amount of storage that you need to allocate for backups.
+Note: Do not use this feature in production environments.
+
+To use this feature, you must install the cpdbr-agent in the Red Hat OpenShift cluster. The cpdbr-agent deploys the node agents to the cluster. The node agents must be run in privileged mode.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Install the cpdbr-agent by running the following command:
+
+    cpd-cli oadp install --component=cpdbr-agent --namespace=${OADP_PROJECT} --cpd-namespace=${PROJECT_CPD_INST_OPERANDS}
+
+    Export the following environment variable:
+
+    export CPDBR_ENABLE_FEATURES=volume-util
+
+    Estimate how much storage you need to allocate to a backup by running the following command:
+
+    cpd-cli oadp du-pv \
+    --namespace=${OADP_PROJECT} \
+    --cpd-namespace=${PROJECT_CPD_INST_OPERANDS}
+
+1.6 Removing MongoDB-related ConfigMaps
+If you upgraded from IBM Cloud Pak® for Data version 4.8.4 or older, some backup and restore ConfigMaps related to MongoDB might remain in the IBM Software Hub operand project (namespace), and must be removed. Ensure that these ConfigMaps do not exist in the operand project by running the following commands:
+
+oc delete cm zen-cs-aux-br-cm
+
+oc delete cm zen-cs-aux-ckpt-cm
+
+oc delete cm zen-cs-aux-qu-cm
+
+oc delete cm zen-cs2-aux-ckpt-cm
+
+1.7 Checking the primary instance of every PostgreSQL cluster is in sync with its replicas
+
+The replicas for Cloud Native PostgreSQL and EDB Postgres clusters occasionally get out of sync with the primary node. To check whether this problem exists and to fix the problem, see the troubleshooting topic PostgreSQL cluster replicas get out of sync.
+1.8 Excluding external volumes from IBM Software Hub offline backups
+
+You can exclude external Persistent Volume Claims (PVCs) in the IBM Software Hub instance project (namespace) from offline backups.
+
+You might want to exclude PVCs that were manually created in the IBM Software Hub project (namespace) but are not needed by IBM Software Hub services. These volumes might be too large for a backup, or they might already be backed up by other means.
+
+Optionally, you can choose to include PVC YAML definitions in the offline backup, and exclude only the contents of the volumes.
+Note: During restore, you might need to manually create excluded PVCs if pods fail to start because of an excluded PVC.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    For backups that are created by using Container Storage Interface (CSI) snapshots, do one of the following choices:
+        To exclude a PVC YAML definition and the contents of the volume in a backup, label the PVC to exclude with the Velero exclude label:
+
+        oc label pvc <pvc-name> velero.io/exclude-from-backup=true
+
+        To include a PVC YAML definition in a backup but exclude the contents of the volume, apply the following label to the PVC:
+
+        oc label pvc <volume-name> icpdsupport/empty-on-backup=true
+
+    To exclude both the PVC YAML definition and the contents of the volume in backups that are created by using Kopia, do the following steps.
+        Label the PVC to exclude with the Velero exclude label:
+
+        oc label pvc <pvc-name> velero.io/exclude-from-backup=true
+
+        Label any pods that mount the PVC with the exclude label.
+
+        In the PVC describe output, look for pods in Mounted By. For each pod, add the label:
+
+        oc describe pvc <pvc-name>
+
+        oc label po <pod-name> velero.io/exclude-from-backup=true
+
+    To include the PVC YAML definition and exclude the contents of the volume in backups that are created by using Kopia, apply the following label to the PVC:
+
+    oc label pvc <volume-name> icpdsupport/empty-on-backup=true
+
+1.9 Preparing Db2
+Add a label to the Db2U cluster and stop Q Replication so that backups can successfully complete. Do the following steps:
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Retrieve the names of the IBM Software Hub deployment's Db2U clusters:
+
+    oc get db2uinstance -A -ojsonpath='{.items[?(@.spec.environment.dbType=="db2oltp")].metadata.name}'
+
+    For each Db2U cluster, do the following substeps:
+        Export the Db2U cluster name:
+
+        export DB2UINSTANCE=<db2uinstance_name>
+
+        Label the cluster:
+
+        oc label db2uinstance ${DB2UINSTANCE} db2u/cpdbr=db2u --overwrite
+
+        Verify that the Db2U cluster now contains the new label:
+
+        oc get db2uinstance ${DB2UINSTANCE} --show-labels
+
+    For each Db2U cluster, if Q Replication is enabled, stop Q Replication by doing the following steps.
+        Get the Q Replication pod name:
+
+        oc get po -n ${PROJECT_CPD_INST_OPERANDS} | grep ${DB2UINSTANCE} | grep qrep
+
+        Exec into the Q Replication pod:
+
+        oc exec -it <qrep-pod-name> bash -n ${PROJECT_CPD_INST_OPERANDS}
+
+        Log in as the dsadmin user:
+
+        su - dsadm
+
+        Stop Q Replication:
+
+        $BLUDR_HOME/scripts/bin/bludr-stop.sh
+
+        When the script has finished running, the following messages appear:
+
+        Stopping bludr replication instance ...
+        Stopping replication ...
+        REPLICATION ENDED SAFELY
+        Stopping BLUDR WLP server...
+        Stopping replication REST server instance ...
+        SERVER STATUS: INACTIVE
+
+1.10 Preparing Db2 Warehouse
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Retrieve the names of the IBM Software Hub deployment's Db2U clusters:
+
+    oc get db2uinstance -A -ojsonpath='{.items[?(@.spec.environment.dbType=="db2wh")].metadata.name}'
+
+    For each Db2U cluster, do the following substeps:
+        Export the Db2U cluster name:
+
+        export DB2UINSTANCE=<db2uinstance_name>
+
+        Label the cluster:
+
+        oc label db2uinstance ${DB2UINSTANCE} db2u/cpdbr=db2u --overwrite
+
+        Verify that the Db2U cluster now contains the new label:
+
+        oc get db2uinstance ${DB2UINSTANCE} --show-labels
+
+    For each Db2U cluster, if Q Replication is enabled, stop Q Replication by doing the following steps.
+        Get the Q Replication pod name:
+
+        oc get po -n ${PROJECT_CPD_INST_OPERANDS} | grep ${DB2UINSTANCE} | grep qrep
+
+        Exec into the Q Replication pod:
+
+        oc exec -it <qrep-pod-name> bash -n ${PROJECT_CPD_INST_OPERANDS}
+
+        Log in as the dsadmin user:
+
+        su - dsadm
+
+        Stop Q Replication:
+
+        $BLUDR_HOME/scripts/bin/bludr-stop.sh
+
+        When the script has finished running, the following messages appear:
+
+        Stopping bludr replication instance ...
+        Stopping replication ...
+        REPLICATION ENDED SAFELY
+        Stopping BLUDR WLP server...
+        Stopping replication REST server instance ...
+        SERVER STATUS: INACTIVE
+
+1.11 Stopping SPSS Modeler runtimes and jobs
+Before you back up the SPSS Modeler service, stop all active runtimes and jobs. Do the following steps:
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    To stop all active SPSS Modeler runtimes and jobs, run the following command:
+
+    oc delete rta -l type=service,job -l component=spss-modeler
+
+    To check whether any SPSS Modeler runtime sessions are still running, run the following command:
+
+    oc get pod -l type=spss-modeler
+
+    When no pods are running, no output is produced for this command.
+
+1.12 Backing up Watson Discovery data separately
+
+Before you back up a cluster where the Watson Discovery service is installed, back up the Watson Discovery data separately by running the Watson Discovery backup script. For more information, see Backing up and restoring data.
+1.13 Preparing watsonx Code Assistant for Z
+
+If watsonx Code Assistant™ for Z is installed, do the following steps:
+
+    If watsonx Code Assistant for Z includes a GPU node, taint the worker node.
+        Find the GPU node:
+
+        oc get node -L nvidia.com/gpu.replicas | grep -oP '.*[\d]$'  | cut -f1 -d' '
+
+        For each node, make it not preferable to schedule on so that only GPU workloads go there:
+
+        oc  adm taint nodes <workerX> special=true:PreferNoSchedule
+
+    Because the IBM large language model (LLM) is more than 75GB, expand the minio-storage-pvc PVC size in the Velero project to 100GB.
+
+    oc patch pvc minio-storage-pvc -n velero --type='merge' -p '{"spec":{"resources":{"requests":{"storage":"100Gi"}}}}'
+
+    Improve the startup performance of the catalog-api-jobs job by increasing the startup probe initial delay to 300s.
+
+    oc patch deployment catalog-api-jobs -n ${PROJECT_CPD_INST_OPERANDS} --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/startupProbe/initialDelaySeconds",  "value": 300}]'
+
+1.14 Checking the status of installed services
+Ensure that the status of all installed services is Completed. Do the following steps:
+
+    Log the cpd-cli in to the Red Hat OpenShift Container Platform cluster:
+
+    ${CPDM_OC_LOGIN}
+
+    Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+    Run the following command to get the status of all services.
+
+    cpd-cli manage get-cr-status \
+    --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+2. Creating an offline backup
+
+Create an offline backup of a IBM Software Hub deployment by doing the following tasks.
+2.1 Setting the mode in which to create backups
+
+You can run the IBM Software Hub OADP backup and restore utility in Kubernetes mode or in REST mode.
+
+By default, the IBM Software Hub OADP backup and restore utility runs in Kubernetes mode. In this mode, you must log in to your Red Hat OpenShift cluster and you must have Kubernetes cluster administrator privileges to use the utility.
+
+If you installed the IBM Software Hub OADP backup REST service, you can run the utility in REST mode to create backups. In REST mode, the utility runs as a REST client that communicates to a REST server. The REST service is configured to work with a specific IBM Software Hub instance. You do not have to log in to the cluster, and IBM Software Hub users with the Administrator role can run backup and checkpoint commands on their own IBM Software Hub instances, based on the specified control plane and any tethered projects.
+Important: You must use Kubernetes mode for the following operations:
+
+    Backup operations for the scheduling service
+    All restore operations, which must be run by a cluster administrator
+
+Running the utility in REST mode is useful when you are generally creating backups only, or when backups take a long time to complete. For backups that take a long time to complete, running the utility in REST mode avoids the problem of the Red Hat OpenShift user session token expiring before the backup process completes. If the session token expires, you must log back in to the cluster and reset the utility.
+Tip: The output format of CLI commands that are run in REST mode are different than CLI commands that are run in Kubernetes mode.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    To create backups in REST mode, run the following command:
+
+    cpd-cli oadp client config set runtime-mode=rest-client
+
+    To change the IBM Software Hub OADP backup and restore utility back to the Kubernetes mode, run the following command:
+
+    cpd-cli oadp client config set runtime-mode=
+
+Related topic: Unable to run an online backup or restore operation
+2.2 Backing up the scheduling service
+
+If the IBM Software Hub scheduling service is installed, create a backup of the service.
+
+Backups that are created in IBM Cloud Pak for Data 5.0 cannot be restored in IBM Software Hub 5.3.0. You must take new backups in 5.3.0.
+Restriction: You cannot install IBM Software Hub scheduling service on s390x clusters (IBM Z and LinuxONE), so you cannot backup or restore the scheduling service to these clusters.
+
+Check the Known issues and limitations for IBM Software Hub page for any workarounds that you might need to do before you create a backup.
+
+    Run the backup and restore utility in Kubernetes mode, and log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Configure the OADP client to set the IBM Software Hub project to the scheduling service project:
+
+    cpd-cli oadp client config set cpd-namespace=${PROJECT_SCHEDULING_SERVICE}
+
+    Configure the OADP client to set the OADP project to the project where the OADP operator is installed:
+
+    cpd-cli oadp client config set namespace=${OADP_PROJECT}
+
+    Run service backup prechecks. The command depends on your version of IBM Software Hub:
+
+    5.3.0 to 5.3.1 Patch 1
+
+        cpd-cli oadp backup precheck \
+        --backup-type singleton \
+        --include-namespaces=${PROJECT_SCHEDULING_SERVICE} \
+        --log-level=debug \
+        --verbose \
+        --hook-kind checkpoint \
+        --exclude-checks ValidVolumeSnapshotClass
+
+    5.3.1 Patch 2 and later
+
+        cpd-cli oadp backup precheck \
+        --backup-type singleton \
+        --include-namespaces=${PROJECT_SCHEDULING_SERVICE} \
+        --log-level=debug \
+        --verbose \
+        --hook-kind checkpoint \
+        --exclude-checks ValidVolumeSnapshotClass,OperatorsDeploymentCheck
+
+    Back up the IBM Software Hub scheduling service:
+
+    cpd-cli oadp backup create \
+    --backup-type singleton ${PROJECT_SCHEDULING_SERVICE}-online \
+    --include-namespaces ${PROJECT_SCHEDULING_SERVICE} \
+    --include-resources='clusterrole,clusterrolebinding,role,rolebinding,serviceaccount,deployment,configmap,customresourcedefinitions.apiextensions.k8s.io,scheduling.scheduler.spectrumcomputing.ibm.com,secret' \
+    --prehooks=false \
+    --posthooks=false \
+    --with-checkpoint \
+    --log-level=debug \
+    --verbose \
+    --hook-kind checkpoint \
+    --selector 'icpdsupport/addOnId in (scheduling),icpdsupport/ignore-on-nd-backup notin (true)' \
+    --include-cluster-resources=true
+
+    Validate the backup:
+
+    cpd-cli oadp backup validate \
+    --backup-type singleton \
+    --include-namespaces=${PROJECT_SCHEDULING_SERVICE} \
+    --backup-names ${PROJECT_SCHEDULING_SERVICE}-online \
+    --log-level trace \
+    --verbose \
+    --hook-kind checkpoint
+
+2.3 Backing up an IBM Software Hub instance
+
+Create an offline backup of each IBM Software Hub instance, or tenant, in your environment by doing the following steps.
+Notes:
+
+    To create Kopia backups, if IBM Software Hub is installed on NFS, NFS storage must be configured with no_root_squash.
+
+    When backup commands are run, some pods remain in a Running state. These running pods do not affect the backup process, and you do not need to manually shut them down.
+    The storage provider that you use to store backups might limit the number of snapshots that you can take per volume. For more information, consult your storage provider documentation.
+    For s390x clusters (IBM Z and LinuxONE), you must run the backup and restore commands from an x86_64 workstation.
+    This section shows you how to create a backup by using the IBM Software Hub 5.3.0 command. You can still create a backup by using the IBM Cloud Pak for Data 5.0 backup commands instead. For details, see Creating an offline backup of IBM Cloud Pak for Data with the OADP utility in the IBM Cloud Pak for Data 5.0 documentation.
+
+Check the Known issues and limitations for IBM Software Hub page for any workarounds that you might need to do before you create a backup.
+
+    Run the backup and restore utility in Kubernetes mode, and log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Create a backup by running one of the following commands.
+
+    The cluster pulls images from the IBM Entitled Registry
+
+        cpd-cli oadp tenant-backup create ${TENANT_OFFLINE_BACKUP_NAME} \
+        --namespace ${OADP_PROJECT} \
+        --vol-mnt-pod-mem-request=1Gi \
+        --vol-mnt-pod-mem-limit=4Gi \
+        --tenant-operator-namespace ${PROJECT_CPD_INST_OPERATORS} \
+        --mode offline \
+        --image-prefix=registry.redhat.io/ubi9 \
+        --log-level=debug \
+        --verbose &> ${TENANT_OFFLINE_BACKUP_NAME}.log&
+
+    The cluster pulls images from a private container registry
+
+        cpd-cli oadp tenant-backup create ${TENANT_OFFLINE_BACKUP_NAME} \
+        --namespace ${OADP_PROJECT} \
+        --vol-mnt-pod-mem-request=1Gi \
+        --vol-mnt-pod-mem-limit=4Gi \
+        --tenant-operator-namespace ${PROJECT_CPD_INST_OPERATORS} \
+        --mode offline \
+        --image-prefix=${PRIVATE_REGISTRY_LOCATION}/ubi9 \
+        --log-level=debug \
+        --verbose &> ${TENANT_OFFLINE_BACKUP_NAME}.log&
+
+    Note: If the backup fails during the volume backup stage, try increasing the --vol-mnt-pod-mem-limit option. You might need to increase this option when you have terabytes of data.
+    Confirm that the tenant backup was created and has a Completed status:
+
+    cpd-cli oadp tenant-backup list
+
+    To view the detailed status of the backup, run the following command:
+
+    cpd-cli oadp tenant-backup status ${TENANT_BACKUP_NAME} \
+    --details
+
+    The command shows the following sub-backups:
+    Backup
+    	
+    Description
+    cpd-tenant-xxx	Backup that contains Kubernetes resources.
+    cpd-tenant-vol-yyy	Backup that contains volume data.
+    Tip: If you need more information, listed in the status details are sub-backups (of type group). You can view more information about these sub-backups by running the following command:
+
+    cpd-cli oadp backup status <SUB_BACKUP_NAME> \
+    --details
+
+    To view logs of the tenant backup and all sub-backups, run the following command:
+
+    cpd-cli oadp tenant-backup log ${TENANT_BACKUP_NAME}
+
+Best practice: If you have services that connect to an external database, such as for business intelligence (BI) reporting, it is recommended that you also back up the database. Backing up the external database ensures data consistency if the IBM Software Hub backup is later restored. For example, you need to restore an older IBM Software Hub backup instead of the most recent backup. The external database is synchronized with the most recent IBM Software Hub backup, so it has data that is not in the backup that you want to restore. To maintain data consistency, you need to restore the external database backup that was taken at the same time as the IBM Software Hub backup.
+3. Cleaning up the cluster before a restore
+
+Before you can restore a IBM Software Hub deployment to the same cluster, you must delete the existing IBM Software Hub instance projects.
+
+Resources in the IBM Software Hub instance are watched and managed by operators and controllers that run in other projects. To prevent corruption or out of sync operators and resources when you delete a IBM Software Hub instance, Kubernetes resources that have finalizers specified in metadata must be located, and those finalizers must be deleted before you can delete the IBM Software Hub instance.
+
+    Log in to Red Hat OpenShift Container Platform as an instance administrator.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Download the cpd-pre-restore-cleanup.sh script for your version of IBM Software Hub.
+        https://github.com/IBM/cpd-cli/tree/master/cpdops/5.3.0
+        https://github.com/IBM/cpd-cli/tree/master/cpdops/5.3.1
+    If the tenant operator project exists and has the common-service NamespaceScope custom resource that identifies all the tenant projects, run the following command:
+
+    ./cpd-pre-restore-cleanup.sh --tenant-operator-namespace="${PROJECT_CPD_INST_OPERATORS}"
+
+    If the tenant operator project does not exist or specific IBM Software Hub projects need to be deleted, run the following command.
+
+    If the common-service NamespaceScope custom resource is not available and additional projects, such as tethered projects, need to be deleted, modify the list of comma-separated projects in the --additional-namespaces option as necessary.
+
+    ./cpd-pre-restore-cleanup.sh --additional-namespaces="${PROJECT_CPD_INST_OPERATORS},${PROJECT_CPD_INST_OPERANDS}"
+
+4. Restoring IBM Software Hub to the same cluster
+
+Restore an offline backup of a IBM Software Hub deployment to the same cluster by doing the following tasks.
+Restriction: You cannot install IBM Software Hub scheduling service on s390x clusters (IBM Z and LinuxONE), so you cannot backup or restore the scheduling service to these clusters.
+4.1 Restoring the scheduling service
+
+If the IBM Software Hub scheduling service was installed on the cluster at the time that you backed up IBM Software Hub, then you must install or restore the service on the cluster before you restore the IBM Software Hub instance.
+Note: Before you can restore a backup of the scheduling service on the same cluster, you must uninstall the service. For details, see Uninstalling the scheduling service.
+
+Check the Known issues and limitations for IBM Software Hub page for any workarounds that you might need to do before you restore a backup.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Configure the OADP client to set the IBM Software Hub project to the scheduling service project:
+
+    cpd-cli oadp client config set cpd-namespace=${PROJECT_SCHEDULING_SERVICE}
+
+    Configure the OADP client to set the OADP project to the project where the OADP operator is installed:
+
+    cpd-cli oadp client config set namespace=${OADP_PROJECT}
+
+    Restore an offline backup by running the following command.
+
+    cpd-cli oadp restore create ${PROJECT_SCHEDULING_SERVICE}-restore \
+    --from-backup=${PROJECT_SCHEDULING_SERVICE}-online \
+    --include-resources='clusterrole,clusterrolebinding,role,rolebinding,serviceaccount,deployment,configmap,customresourcedefinitions.apiextensions.k8s.io,scheduling.scheduler.spectrumcomputing.ibm.com,secret' \
+    --include-cluster-resources=true \
+    --skip-hooks \
+    --log-level=debug \
+    --verbose
+
+4.2 Restoring an IBM Software Hub instance
+
+Restore an IBM Software Hub instance by doing the following steps.
+Notes:
+
+    Check the Known issues and limitations for IBM Software Hub page for any workarounds that you might need to do before you restore a backup.
+
+    You cannot restore a backup to a different project of the IBM Software Hub instance.
+
+    If service-related custom resources are manually placed into maintenance mode before an online backup is created, those custom resources remain in the same state if the backup is restored. Taking these services out of maintenance mode must be done manually after the restore.
+    For s390x clusters (IBM Z and LinuxONE), you must run the backup and restore commands from an x86_64 workstation
+
+    If running a restore command produces a Failed or PartiallyFailed error, you must clean up the IBM Software Hub instance and restart the restore process.
+
+Check the Known issues and limitations for IBM Software Hub page for any workarounds that you might need to do before you restore a backup.
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Restore IBM Software Hub by running one of the following commands.
+
+    The cluster pulls images from the IBM Entitled Registry
+
+        cpd-cli oadp tenant-restore create ${TENANT_OFFLINE_BACKUP_NAME}-restore \
+        --from-tenant-backup ${TENANT_OFFLINE_BACKUP_NAME} \
+        --image-prefix=registry.redhat.io/ubi9 \
+        --verbose \
+        --log-level=debug &> ${TENANT_OFFLINE_BACKUP_NAME}-restore.log&
+
+    The cluster pulls images from a private container registry
+
+        cpd-cli oadp tenant-restore create ${TENANT_OFFLINE_BACKUP_NAME}-restore \
+        --from-tenant-backup ${TENANT_OFFLINE_BACKUP_NAME} \
+        --image-prefix=${PRIVATE_REGISTRY_LOCATION}/ubi9 \
+        --verbose \
+        --log-level=debug &> ${TENANT_OFFLINE_BACKUP_NAME}-restore.log&
+
+    Get the status of the installed components:
+        Log the cpd-cli in to the Red Hat OpenShift Container Platform cluster:
+
+        ${CPDM_OC_LOGIN}
+
+        Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+        Run the appropriate command for your environment:
+
+        Installations with tethered projects
+
+            cpd-cli manage get-cr-status \
+            --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+            --tethered_instance_ns=${PROJECT_CPD_INSTANCE_TETHERED_LIST}
+
+        Installations without tethered projects
+
+            cpd-cli manage get-cr-status \
+            --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS}
+
+        Check that all services have the status Completed or Succeeded.
+    To view a list of restores, run the following command:
+
+    cpd-cli oadp tenant-restore list
+
+    To view the detailed status of the restore, run the following command:
+
+    cpd-cli oadp tenant-restore status ${TENANT_BACKUP_NAME}-restore \
+    --details
+
+    The command shows a varying number of sub-restores in the following form:
+
+    cpd-tenant-r-xxx
+
+    Tip: If you need more information, you can find sub-restores (of type group) listed in the status details. You can view more information about these sub-restores by running the following command:
+
+    cpd-cli oadp restore status <SUB_RESTORE_NAME> \
+    --details
+
+    To view logs of the tenant restore, run the following command:
+
+    cpd-cli oadp tenant-restore log ${TENANT_BACKUP_NAME}-restore
+
+Best practice: If your IBM Software Hub deployment has services that connect to an external database, and you followed the recommendation to back up the database at the same time that you back up IBM Software Hub, restore the database backup that was taken at the same time as the IBM Software Hub backup.
+5. Completing post-restore tasks
+
+Complete additional tasks for the control plane and some services after you restore an IBM Software Hub deployment from an offline backup.
+5.1 Applying cluster HTTP proxy settings or other RSI patches to the control plane
+If you applied cluster HTTP proxy settings or other RSI patches to an IBM Software Hub instance in the source cluster, the evictor cronjob runs every 30 minutes to patch pods that did not get patched. Optionally, you can run the following command to apply the patches:
+
+cpd-cli manage apply-rsi-patches --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} -vvv
+
+5.2 Patching Cognos Analytics instances
+If a Db2 OLTP database within the cluster is used for a Cognos Analytics content store or audit database, the Cognos Analytics service instance must be patched. Because the Db2 database host and port might be different in the target cluster, update these values in the Cognos Analytics service instance to the correct values to ensure that the instance starts successfully. Do the following steps:
+
+    Patch the content store and audit database ports in the Cognos Analytics service instance by running the following script:
+
+    #!/usr/bin/env bash
+    #-----------------------------------------------------------------------------
+    #Licensed Materials - Property of IBM
+    #IBM Cognos Products: ca
+    #(C) Copyright IBM Corp. 2024
+    #US Government Users Restricted Rights - Use, duplication or disclosure restricted by GSA ADP Schedule
+    #-----------------------------------------------------------------------------
+    set -e
+    #set -x
+
+    function usage {
+        echo $0: usage: $0 [-h] -t tethered_namespace -a audit_db_port_number -c cs_db_port_number [-v]
+    }
+
+    function help {
+        usage
+        echo "-h prints help to the console"
+        echo "-t tethered namespace (required)"
+        echo "-a Audit DB port number"
+        echo "-c CS DB port number"
+        echo "-v turn on verbose mode"
+        echo ""
+        exit 0
+    }
+
+    while getopts ":ht:a:c:v" opt; do
+        case ${opt} in
+            h)
+                help
+                ;;
+            t)
+                tethered_namespace=$OPTARG
+                ;;
+            a)
+                audit_db_port_number=$OPTARG
+                ;;
+            c)
+                cs_db_port_number=$OPTARG
+                ;;
+            v)
+                verbose_flag="true"
+                ;;
+            ?)
+                usage
+                exit 0
+                ;;
+        esac
+    done
+
+    if [[ -z ${tethered_namespace} ]]; then
+        echo "A tethered namespace must be provided"
+        help
+    fi
+
+    echo "Get CAServiceInstance Name"
+    cr_name=$(oc -n ${tethered_namespace} get caserviceinstance --no-headers -o custom-columns=NAME:.metadata.name)
+    if [[ -z ${cr_name} ]]; then
+        echo "Unable to find CAServiceInstance CR for namespace: ${tethered_namespace}"
+        help
+    fi
+
+    if [[ ! -z ${cs_db_port_number} ]]; then
+        echo "Updating CS Database Port Number in the Custom Resource ${cr_name}..."
+        oc patch caserviceinstance ${cr_name} --type merge -p "{\"spec\":{\"cs\":{\"database_port\":\"${cs_db_port_number}\"}}}" -n ${tethered_namespace}
+    fi
+
+    if [[ ! -z ${audit_db_port_number} ]]; then
+        echo "Updating Audit Database Port Number in the Custom Resource ${cr_name}..."
+        oc patch caserviceinstance ${cr_name} --type merge -p "{\"spec\":{\"audit\":{\"database_port\":\"${audit_db_port_number}\" }}}" -n ${tethered_namespace}
+    fi
+
+    sleep 20
+    check_status="Completed"
+
+    Check the status of the Cognos Analytics reconcile action:
+
+    for i in {1..240};do
+    caStatus=$(oc get caserviceinstance ${cr_name} -o jsonpath="{.status.caStatus}" -n ${tethered_namespace})
+
+    if [[ ${caStatus} == ${check_status} ]];then
+        echo "ca ${check_status} Successfully"
+        break
+    elif [[ ${caStatus} == "Failed" ]];then
+        echo "ca ${caStatus}!"
+        exit 1
+    fi
+    echo "ca Status: ${caStatus}"
+    sleep 30
+
+    done
+
+5.3 Patching Watson OpenScale database
+
+If a Db2 or Db2 Warehouse database in the cluster is used as data mart database in Watson OpenScale, the port must be updated. Because the Db2 database port might be different after restoring, update the port in the Watson OpenScale instance database to the correct value. You can update the port through the Watson OpenScale user interface or API.
+5.4 Restarting Data Replication replications
+After IBM Software Hub is restored, do the following steps:
+
+    Connect to the restored IBM Software Hub instance.
+    Go to the restored replications and stop them.
+    Restart the replications.
+
+5.5 Restoring Db2
+If Q Replication is enabled on the source cluster, the service must be re-enabled after the restore. Follow the instructions in the following topics:
+
+    Updating replication external ports at the Db2 data source
+    Updating replication external ports at the Db2 data target
+
+5.6 Restoring Db2 Warehouse
+If Q Replication is enabled on the source cluster, the service must be re-enabled after the restore. Follow the instructions in the following topics:
+
+    Updating replication external ports at the Db2 data source
+    Updating replication external ports at the Db2 data target
+
+5.7 Restarting IBM Knowledge Catalog lineage pods
+After a restore, restart the following lineage pods so that you can access lineage data from the knowledge graph:
+
+    wkc-data-lineage-service-xxx
+    wdp-kg-ingestion-service-xxx
+
+Do the following steps:
+
+    Log in to Red Hat OpenShift Container Platform as a cluster administrator:
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Restart the wkc-data-lineage-service-xxx pod:
+
+    oc delete -n ${PROJECT_CPD_INST_OPERANDS} "$(oc get pods -o name -n ${PROJECT_CPD_INST_OPERANDS} | grep wkc-data-lineage-service)"
+
+    Restart the wdp-kg-ingestion-service-xxx pod:
+
+    oc delete -n ${PROJECT_CPD_INST_OPERANDS} "$(oc get pods -o name -n ${PROJECT_CPD_INST_OPERANDS} | grep wdp-kg-ingestion-service)"
+
+5.8 Verifying the Watson Machine Learning restore operation
+
+After restoring from a backup, users might be unable to deploy new models and score existing models. To resolve this issue, after the restore operation, wait until operator reconciliation completes.
+
+    Log in to Red Hat OpenShift Container Platform as a user with sufficient permissions to complete the task.
+
+    ${OC_LOGIN}
+
+    Remember: OC_LOGIN is an alias for the oc login command.
+    Check the status of the operator with the following commands:
+
+    export PROJECT_WML=<wml-namespace>
+
+    kubectl describe WmlBase wml-cr -n ${PROJECT_WML} | grep "Wml Status" | awk '{print $3}'
+
+    After backup and restore operations, before using Watson Machine Learning, make sure that the wml-cr is in completed state and all the wml pods are in running state. Use this command to check that all wml pods are in running state:
+
+    oc get pods -n <wml-namespace> -l release=wml
+
+5.9 Retraining existing watsonx Assistant skills
+
+After restoring the watsonx Assistant backup, it is necessary to retrain the existing skills. This involves modifying a skill, to trigger training. The training process for a skill typically requires less than 10 minutes to complete. For more information, see the Retraining your backend model section in the IBM Cloud documentation.
+5.10 Starting the ibm-granite-20b-code-cobol-v1-predictor pod in the watsonx Code Assistant for Z service
+
+If the ibm-granite-20b-code-cobol-v1-predictor pod is not running, start it.
+
+    Check whether the ibm-granite-20b-code-cobol-v1-predictor pod is in a Running state by running the following command:
+
+    oc get po -n ${PROJECT_CPD_INST_OPERANDS} | grep ibm-granite-20b-code-cobol-v1-predictor
+
+    If the ibm-granite-20b-code-cobol-v1-predictor pod is not in a Running state, edit the pod:
+
+    oc edit deploy -n ${PROJECT_CPD_INST_OPERANDS} ibm-granite-20b-code-cobol-v1-predictor
+
+    Under startupProbe, check if initialDelaySeconds: 200 is missing. If it is missing, add it.
+
+    ...
+    startupProbe:
+      failureThreshold: 200
+      httpGet:
+        path: /health
+        port: http
+        scheme: HTTP
+      initialDelaySeconds: 200
+      periodSeconds: 10
+    ...
+
+5.11 Restoring services that do not support offline backup and restore
+
+The following list shows the services that don't support offline backup and restore. If any of these services are installed in your IBM Software Hub deployment, do the appropriate steps to make them functional after a restore.
+
+Data Gate
+    Data Gate synchronizes Db2 for z/OS data in real time. After IBM Software Hub is restored, data might be out of sync from Db2 for z/OS. It is recommended that you re-add tables after IBM Software Hub foundational services are restored.
+MongoDB
+    The service must be deleted and reinstalled. Recreate the instance as a new instance, and then restore the data with MongoDB tools. For more information, see Installing the MongoDB service and Back Up and Restore with MongoDB Tools.
+Watson Discovery
+
+    The service must be uninstalled, reinstalled, then the data restored.
+
+        For more information about how to uninstall Watson Discovery, see Uninstalling Watson Discovery.
+        For more information about how to reinstall Watson Discovery, see Installing Watson Discovery.
+        For more information about how to restore the data, see Backing up and restoring data in IBM Software Hub.
+
+Watson Speech services
+    The service is functional and you can re-import data. For more information, see Migrating data between Watson Speech services service instances.
+
+Parent topic:
+Offline backup and restore to the same cluster with the IBM Software Hub OADP utility
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+

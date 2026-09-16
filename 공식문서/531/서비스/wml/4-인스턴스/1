@@ -1,0 +1,211 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                        Upgrading operators for services that require GPUs
+                        Upgrading Red Hat OpenShift AI
+                        Upgrading Multicloud Object Gateway
+                        Upgrading Red Hat OpenShift Serverless Knative Eventing
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                    Checking the health of your cluster
+                    Updating cluster-scoped resources for the instance
+                    Upgrading the IBM Events Operator
+                    Reauthorizing the NamespaceScope operator with the minimum RBAC
+                    Reauthorizing a user with the minimum RBAC
+                    Applying your entitlements
+                Upgrading an instance of IBM Software Hub
+                    Creating image pull secrets for the instance
+                    Upgrading IBM Software Hub
+                    Updating the cpdbr service
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Checking the health of your cluster before upgrading IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+The IBM Software Hub command-line interface includes commands that you can use the validate the health of your cluster before you upgrade IBM Software Hub.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are here icon. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Cluster administrator A cluster administrator must complete this task.
+When do you need to complete this task?
+
+    This task is optional but strongly recommended. If you do not validate the health of your cluster before you upgrade IBM Software Hub, you might encounter issues during the upgrade.
+
+    Repeat as needed If you have multiple instances of IBM Software Hub, repeat this task for each instance of IBM Software Hub that you plan to upgrade.
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written using the installation environment variables. Ensure that you added the new environment variables from Updating your environment variables script.
+
+In addition, ensure that you source the environment variables before you run the commands in this task.
+About this task
+Before you upgrade IBM Software Hub, you can run the following commands to check the health of your cluster:
+
+    Use the cpd-cli health cluster command to check that cluster resources, such as operators and machine config pools are healthy.
+    Use the cpd-cli health nodes command to check that the nodes are ready and that resource use on each node is under 90%.
+    Use the cpd-cli health network-performance command to check that your cluster network has sufficient throughput.
+    Use the cpd-cli health network-connectivity command to check the state of cluster network resources.
+
+Procedure
+
+    Log the cpd-cli in to the Red Hat® OpenShift® Container Platform cluster:
+
+    ${CPDM_OC_LOGIN}
+
+    Remember: CPDM_OC_LOGIN is an alias for the cpd-cli manage login-to-ocp command.
+    Run the cluster command:
+
+    cpd-cli health cluster
+
+    Confirm that the cluster resources report returns the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Cluster Version Check	The cluster is running a supported version of Red Hat OpenShift Container Platform.	[SUCCESS]
+    Image Registry Connectivity Test	The cluster can reach the following sites:
+        https://icr.io
+        https://github.com/IBM
+        https://mirror.openshift.com/pub
+    Note: In a restricted network, this check might fail. If you pull images from a private container registry, [FAIL] is an acceptable result.
+    	[SUCCESS]
+    Machine Config Pools Healthcheck	The machine config pools are not UPDATING or DEGRADED. 	[SUCCESS]
+    Certificate Signing Request Healthcheck	There are no certificate signing requests that are pending.
+
+    If there are pending certificate signing requests, the check fails.
+    	[SKIP...]
+    Cluster Operator Healthcheck	The cluster operators are AVAILABLE and are not DEGRADED.	[SUCCESS]
+    ETCD Healthcheck	The Kubernetes etcd cluster members are healthy.	[SUCCESS]
+    Run the nodes command:
+
+    cpd-cli health nodes
+
+    Confirm that the node resources report returns the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Node readiness	The cluster nodes are READY and are not under pressure. 	[SUCCESS]
+    Node Resources Healthcheck	That resource use on each node is under 90%. 	[SUCCESS]
+    Run the network-performance command.
+    The cluster pulls images from the IBM Entitled Registry
+
+    The cluster pulls images from a private container registry
+
+    Confirm that the summary section of the network performance report includes the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Node readiness check	The nodes that will be tested are READY. (By default, all nodes are tested.)	[SUCCESS]
+    Pod readiness check	The pods that are used to test network performance are ready and that their containers are running.
+
+    The ibm-network-performance-ds DaemonSet creates a pod on each node that will be tested. (By default, all nodes are tested.)
+    	[SUCCESS]
+    Network throughput check	The minimum network throughput is at least 350 MB per second. 	[SUCCESS]
+    Run the network-connectivity command.
+
+    cpd-cli health network-connectivity \
+    --control_plane_ns=${PROJECT_CPD_INST_OPERANDS}
+
+    Confirm that the summary section of the network connectivity report includes the expected results:
+    Test
+    	
+    What the test checks
+    	
+    Expected result
+    Network Cluster Operator Healthcheck	The OpenShift cluster network operators are AVAILABLE and are not DEGRADED.	[SUCCESS]
+    Pod Healthcheck	The pods in the openshift-ovn-kubernetes project are healthy.	[SUCCESS]
+    PodNetworkConnectivityCheck Custom Resource Healthcheck	The podnetworkconnectivitychecks objects are reachable.	[SUCCESS]
+    Operator To Operand Pod Connection check	The pods in the operators project for the instance can connect to pods in the operands project for the instance.	[SUCCESS]
+
+What to do next
+Now that you've checked the health of your cluster, you're ready to complete Reauthorizing an instance administrator with the minimum RBAC to upgrade components (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Preparing to upgrade an instance of IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Next topic:
+Updating the cluster-scoped resources for the platform and services (Upgrading from Version 5.1 to Version 5.3)
+Related reference
+
+    cpd-cli manage login-to-ocp
+    cpd-cli health cluster
+    cpd-cli health nodes
+    cpd-cli health network-performance
+    cpd-cli health network-connectivity
+
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    About this task
+    Procedure
+    What to do next
+

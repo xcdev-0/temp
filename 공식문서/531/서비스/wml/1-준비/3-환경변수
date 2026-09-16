@@ -1,0 +1,188 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                    Determining which components to upgrade
+                    Determining which models and optional images to mirror
+                    Updating your environment variables script
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                Preparing your cluster
+                Preparing to upgrade an instance of IBM Software Hub
+                Upgrading an instance of IBM Software Hub
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Updating your environment variables script (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-07-15
+
+The commands for upgrading IBM® Software Hub use variables with the format ${VARIABLE_NAME}. Ensure that your environment variables script includes the correct information for the instance of IBM Software Hub that you want to upgrade.
+
+Upgrade phase
+
+        You are here icon. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are not here. Upgrading an instance
+
+Who needs to complete this task?
+
+    Operations team The IBM Software Hub operations team should work with the cluster administrator to compile information about the cluster where IBM Software Hub is installed.
+When do you need to complete this task?
+
+    Repeat as needed If you have multiple instances of IBM Software Hub on the cluster and you maintain separate scripts for each instance, update the script for each instance that you plan to upgrade.
+
+Editing your environment variables file
+
+    Open your existing environment variable shell script in a text editor.
+    Locate the VERSION entry and specify the version of IBM Software Hub that you want to upgrade to. For example:
+
+    export VERSION=5.3.1
+
+    Set or update the OLM_UTILS_IMAGE environment variable based on your license and your cluster hardware.
+    Tip: If your cluster pulls images from a private container registry, you will update this environment variable after the image is pushed to the private container registry.
+
+    olm-utils-v4
+
+        All IBM Software Hub customers are entitled to use the olm-utils-v4 image.
+
+        x86-64 clusters
+
+            export OLM_UTILS_IMAGE=icr.io/cpopen/cpd/olm-utils-v4:${VERSION}.amd64
+
+        ppc64le clusters
+
+            export OLM_UTILS_IMAGE=icr.io/cpopen/cpd/olm-utils-v4:${VERSION}.ppc64le
+
+        s390x clusters
+
+            export OLM_UTILS_IMAGE=icr.io/cpopen/cpd/olm-utils-v4:${VERSION}.s390x
+
+    olm-utils-premium-v4
+
+        You must purchase the IBM Software Hub Premium Cartridge license to use the olm-utils-premium-v4 image.
+
+        x86-64 clusters
+
+            export OLM_UTILS_IMAGE=cp.icr.io/cp/cpd/olm-utils-premium-v4:${VERSION}.amd64
+
+        ppc64le clusters
+
+            export OLM_UTILS_IMAGE=cp.icr.io/cp/cpd/olm-utils-premium-v4:${VERSION}.ppc64le
+
+        s390x clusters
+
+            export OLM_UTILS_IMAGE=cp.icr.io/cp/cpd/olm-utils-premium-v4:${VERSION}.s390x
+
+    If needed, update the COMPONENTS variable.
+
+    Confirm that the list of service components is accurate.
+    If you mirror images to a private container registry and you need to mirror models or optional images that are not included with the service images, add or update the IMAGE_GROUPS environment variable to your script:
+
+    export IMAGE_GROUPS=<comma-separated-list-of-group-names>
+
+    A comma-separated list of models or optional images to mirror to your private container registry.
+
+    If a component has models or optional images that are not mirrored by default, you must explicitly mirror those images to your private container registry.
+
+    For example, if you plan to install watsonx.ai™, you must choose which models to mirror to your private container registry.
+
+    For more information, see Determining which models and images to mirror to your private container registry (Upgrading from Version 5.1 to Version 5.3).
+    Add a new section called Image pull configuration to your script and add the following environment variables:
+        Add the IMAGE_PULL_SECRET environment variable and set it to the name that you want to use for the namespace-scoped secret that will contain the base64 encoded credentials for pulling images.
+
+        Specify a Kubernetes compliant name that contains only lowercase alphanumeric characters, hyphens (-) or periods (.). The name must start and end with an alphanumeric character.
+
+        export IMAGE_PULL_SECRET=<pull-secret-name>
+
+        Add the IMAGE_PULL_CREDENTIALS and IMAGE_PULL_PREFIX environment variables based on where your cluster pulls images from:
+
+        IBM Entitled Registry
+            If your cluster pulls images from the IBM Entitled Registry, add the following environment variables to your script. Do not modify the export commands:
+
+            export IMAGE_PULL_CREDENTIALS=$(echo -n "cp:$IBM_ENTITLEMENT_KEY" | base64 -w 0)
+            export IMAGE_PULL_PREFIX=icr.io
+
+        Private container registry
+            If your cluster pulls images from a private container registry, add the following environment variables to your script. Do not modify the export commands:
+
+            export IMAGE_PULL_CREDENTIALS=$(echo -n "$PRIVATE_REGISTRY_PULL_USER:$PRIVATE_REGISTRY_PULL_PASSWORD" | base64 -w 0)
+            export IMAGE_PULL_PREFIX=${PRIVATE_REGISTRY_LOCATION}
+
+    Save your changes.
+    Confirm that the script does not contain any errors. For example, if you named the script cpd_vars.sh, run:
+
+    bash ./cpd_vars.sh
+
+Sourcing the environment variables
+
+You must run the script from a bash prompt before you run the installation and upgrade commands. The script exports the environment variables to your command-line session.
+Important: You must re-run the script each time you open a new bash prompt.
+
+    Change to the directory where you saved the script.
+    Source the environment variables. For example, if you named the script cpd_vars.sh, run:
+
+    source ./cpd_vars.sh
+
+What to do next
+Now that you've updated the environment variables in your script, you're ready to complete Updating client workstations (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Collecting information required to upgrade IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Previous topic:
+Determining which models and images to mirror to your private container registry (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Editing your environment variables file
+    Sourcing the environment variables
+    What to do next
+

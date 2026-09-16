@@ -1,0 +1,144 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+        Services
+            AI services
+            Analytics services
+            Dashboard services
+            Data governance services
+            Data management services
+            Developer tool services
+                Anaconda Repository for IBM Cloud Pak for Data
+                RStudio Server Runtimes
+                Watson Studio Runtimes
+                    Installing
+                    Upgrading
+                        Migrating notebooks and jobs that use outdated environments
+                        Upgrading from Version 5.1
+                        Upgrading from Version 5.2
+                        Upgrading from Version 5.3
+                    Getting started
+                    Administering
+                    Uninstalling
+            Industry solutions services
+            Storage services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Migrating notebooks and jobs that use outdated environments
+Last Updated: 2026-05-07
+
+Runtime 22.2 and Runtime 23.1 are not included in IBM® Software Hub. To continue using notebooks and jobs that use environments based on Runtime 22.2 or Runtime 23.1, you must review them and manually migrate them, if necessary.
+The following Python and R environment templates are available in IBM Software Hub:
+
+    Runtime 24.1 on Python 3.11 (with and without GPU)
+    Runtime 24.1 on R 4.3
+    JupyterLab with Runtime 24.1 on Python 3.11
+    Default Spark 3.4 & Python 3.11
+    Default Spark 3.4 & Python 3.10 (deprecated)
+    Default Spark 3.3 & Python 3.10 (deprecated)
+    Default Spark 3.4 & R 4.3
+    Default Spark 3.4 & R 4.2 (deprecated)
+    Default Spark 3.3 & R 4.2 (deprecated)
+
+How do I determine migration paths for my notebooks and jobs?
+Important: If your notebooks and jobs are based on an outdated runtime but you don't want to migrate them to the latest runtime, you must create a custom environment definition and assign it to them before you upgrade IBM Software Hub. You won't be able to do this after you upgrade. For more information, see step 2. If your notebook or job already uses a custom environment definition that does not rely on a software version (runtime) that is being removed, it will continue working as-is. No other steps are required. For information on how to check the type of the environment, see step 4.
+Here are the general rules to follow if your notebooks and jobs use an environment that is based on an outdated runtime:
+
+    Ask runtime users to try running their notebooks and jobs with the latest runtime and evaluate how many changes in code are required. If you determine that your notebooks can run with the new runtime version, skip steps 2 and 3.
+    If a valid reason exists for runtime users to continue using the environments that are based on outdated runtimes, do the following:
+        Download the appropriate runtime definition file. See Downloading the runtime definition.
+        For Jupyter Notebooks, use one of the following configuration files:
+            jupyter-231n-py-server.json
+            jupyter-231n-pygpu-server.json
+            jupyter-231n-r-server.json
+            jupyter-222n-py-server.json
+            jupyter-222n-pygpu-server.json
+            jupyter-222n-r-server.json
+        For Jupyterlab, use one of the following configuration files:
+            jupyter-231l-py-server.json
+            jupyter-231l-pygpu-server.json
+            jupyter-222l-py-server.json
+            jupyter-222l-pygpu-server.json
+        Rename the downloaded runtime definition file, for example, to cpd48-jupyter-222n-py-server.json.
+
+        Replace name, display_name, description and author with your own data. If name consists of several words, separate each word with a hyphen (for example, custom-def-name). The name must be unique among all runtime definitions of IBM Software Hub. The unique name that you provide appears in the Software version drop-down menu when an environment template is created.
+        To make sure that the pod mounts the central certificates, under labels add this code:
+
+        "labels": [
+              {
+                "name": "cpd-platform-ca-certs",
+                "value": "true"
+              }
+            ]
+
+        Create a runtime definition with the settings that are defined in the JSON file by using the API:
+
+        curl -k -X POST -H "Authorization: ZenApiKey ${MY_TOKEN}" -H "Content-Type:application/json" "${CPD_URL}/v2/runtime_definitions" -d @</path/to/runtime/def/><custom-def-file-name>.json
+
+        Note:
+            </path/to/runtime/def/> is the path to the runtime definition JSON file on your local computer.
+            You cannot skip the @ symbol. This symbol is mandatory.
+
+        If the creation of the runtime definition is successful, you receive a response that contains a GUID that can you can use to retrieve, update or delete the runtime definition.
+        If a notebook or job uses a default environment template, users must now create a new custom environment that points to the newly created custom runtime definition and then update all the notebooks and jobs that use the old default environment template to use that new custom environment.
+        If a notebook or job already uses a custom environment then it's sufficient to modify that custom environment and change the software configuration to point to the new runtime definition.
+        Ask runtime users to test if their updated notebooks and jobs run successfully.
+        If notebooks and jobs run successfully, you can upgrade to IBM Software Hub 5.3. Your custom environments with this change will be migrated.
+    Note: Custom runtime definitions are global in IBM Software Hub, but custom environments that use them are project-scoped. Runtime users must create custom environment templates in each affected project.
+    If the remaining notebooks and jobs work with the latest environments, upgrade to IBM Software Hub 5.3.
+        If the notebook or job uses a default environment template that will be removed after the upgrade, users must now assign one of the latest environment templates to it. To do that for a notebook, they must find it in the Assets tab, click the More icon, and select Change environment. To do that for a job, they must find it in the Jobs tab, click the job name to open the details page, click the Edit button, select Configure, and then select the latest environment from the Select environment pull-down menu. If they don't assign a new environment to the notebook or job, it will not run, because the old environment is not available anymore.
+        If the notebook or job uses a custom environment template that is based on one of the default runtime configurations that will be removed after the upgrade (for example, if the notebook or job uses the default Python 3.10 environment based on Runtime 23.1 with an extra vCPU and an additional non-standard library), users must open their Project's Manage tab, find their custom environment template, and click on Options > Edit to open the details page for the template. Then from the pull-down menu next to Software configuration, they must select one of the latest runtime configurations. If they don't assign a new runtime configuration to the notebook or job, it will not run, because the old runtime configuration is not available anymore.
+        If the notebook or job uses a custom environment template that uses a custom runtime definition (that was created by instance admins), it will continue working as-is. No other steps are required. To make sure whether an environment points to a custom runtime definition file, users must open their Project's Manage tab, find their custom environment template, and click on Options > Edit to open the details page for the template. Then open the pull-down menu next to Software configuration. If the name of a software configuration contains parentheses, for example Runtime 23.1 on Python 3.10 (jupyter-py310n) that configuration points to a custom runtime definition file.
+    Optional: (only if ws_runtimes was not included in the components list when you ran the upgrade script: cpd-cli manage apply-cr --upgrade=true --components=....). After you upgrade to IBM Software Hub 5.3, delete any remaining, unsupported Jupyter Notebook runtimes:
+        Run the following command to see which runtimes are installed:
+
+        $ cpd-cli manage get-cr-status \
+        --cpd_instance_ns=${PROJECT_CPD_INST_OPERANDS} \
+        --components=ws_runtimes
+
+        If one of the following environments is included in the output:
+            ibm-cpd-ws-runtime-231-py
+            ibm-cpd-ws-runtime-231-pygpu
+            ibm-cpd-ws-runtime-231-r
+            ibm-cpd-ws-runtime-222-py
+            ibm-cpd-ws-runtime-222-pygpu
+            ibm-cpd-ws-runtime-222-r
+    Delete the runtimes by running the following commands:
+
+    oc delete -n ${PROJECT_CPD_INST_OPERANDS} --ignore-not-found NotebookRuntime ibm-cpd-ws-runtime-231-py ibm-cpd-ws-runtime-231-pygpu ibm-cpd-ws-runtime-231-r ibm-cpd-ws-runtime-222-py ibm-cpd-ws-runtime-222-pygpu ibm-cpd-ws-runtime-222-r
+
+Parent topic:
+Upgrading Watson Studio Runtimes
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+    Cookie Preferences
+
+    IBM Documentation Help
+

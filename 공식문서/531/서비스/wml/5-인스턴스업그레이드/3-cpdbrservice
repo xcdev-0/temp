@@ -1,0 +1,384 @@
+
+
+IBM Software Hub
+Change version
+Select
+Filter on titles
+
+        Welcome
+        Overview
+        Getting started
+        Planning
+        Installing
+        Upgrading
+            Planning an upgrade
+            Migrating to the Red Hat OpenShift certificate manager
+            Upgrading from Version 5.1
+                Collecting required information
+                Updating client workstations
+                Preparing to run upgrades in a restricted network
+                Preparing to run upgrades from a private container registry
+                    Mirroring images to a private container registry
+                    Pulling the olm-utils-v4 image from the private container registry
+                Preparing your cluster
+                    Upgrading prerequisite software
+                        Upgrading operators for services that require GPUs
+                        Upgrading Red Hat OpenShift AI
+                        Upgrading Multicloud Object Gateway
+                        Upgrading Red Hat OpenShift Serverless Knative Eventing
+                    Updating cluster-scoped resources for shared cluster components
+                    Creating image pull secrets for shared cluster components
+                    Upgrading shared cluster components
+                Preparing to upgrade an instance of IBM Software Hub
+                    Checking the health of your cluster
+                    Updating cluster-scoped resources for the instance
+                    Upgrading the IBM Events Operator
+                    Reauthorizing the NamespaceScope operator with the minimum RBAC
+                    Reauthorizing a user with the minimum RBAC
+                    Applying your entitlements
+                        Applying your entitlements without node pinning
+                        Applying your entitlements and pinning pods to nodes
+                Upgrading an instance of IBM Software Hub
+                    Creating image pull secrets for the instance
+                    Upgrading IBM Software Hub
+                    Updating the cpdbr service
+                Upgrading the configuration admission controller webhook
+                Upgrading privileged monitors
+                Upgrading remote physical locations
+            Upgrading from Version 5.2
+            Upgrading from Version 5.3
+            Applying patches
+        Services
+        Administering
+        cpd-cli command reference
+        Troubleshooting
+
+Announcements & sales manuals
+
+Get hands-on experience with IBM tech  Join one of the largest technical IBM community gatherings!  →
+
+    All products
+    IBM Software Hub
+    5.3.x
+
+Was this topic helpful?
+
+Focus sentinel
+A newer version of this product documentation is available.
+You are viewing an older version.
+View latest
+Focus sentinel
+Updating the cpdbr service (Upgrading from Version 5.1 to Version 5.3)
+Last Updated: 2026-08-20
+
+You must upgrade the cpdbr service after you upgrade IBM® Software Hub.
+
+Upgrade phase
+
+        You are not here. Collecting required information
+        You are not here. Updating your client workstation
+        You are not here. Preparing to run an upgrade in a restricted network
+        You are not here. Preparing to run an upgrade from a private container registry
+        You are not here. Upgrading prerequisite software
+        You are not here. Upgrading shared cluster components
+        You are not here. Preparing to upgrade an instance
+        You are here icon. Upgrading an instance
+
+Who needs to complete this task?
+
+    Cluster administrator A cluster administrator must complete this task.
+When do you need to complete this task?
+
+    Repeat as needed If you have multiple instances of IBM Software Hub, repeat this task for each instance that you upgrade.
+
+Before you begin
+Best practice: You can run the commands in this task exactly as written using the installation environment variables. Ensure that you added the new environment variables from Updating your environment variables script.
+
+In addition, ensure that you source the environment variables before you run the commands in this task.
+About this task
+
+After you upgrade IBM Software Hub, you must upgrade the cpdbr service image.
+
+Complete the appropriate steps based on the tool that you use to back up IBM Software Hub.
+Procedure
+
+OADP backup and restore utility users:
+
+    Upgrade the cpdbr-tenant component for the instance.
+    The command that you run depends on whether the scheduling service is installed.
+    Environments with the scheduling service
+
+    Environments with the scheduling service
+
+IBM Fusion backup and restore service users:
+
+    Configure DataProtectionApplication (DPA) with the additional plugins required by IBM Software Hub Backup-Restore.
+        Increase the ephemeral storage and memory limits for the Velero pods:
+
+        oc patch dpa \
+        -n ibm-backup-restore velero \
+        --type merge \
+        -p '{"spec": {"configuration": {"velero": {"podConfig": {"resourceAllocations": {"limits": {"ephemeral-storage": "2Gi", "memory": "4Gi"}}}}}}}'
+
+        Configure the plugins required by IBM Software Hub:
+
+        DPA="velero"
+        NAMESPACE="ibm-backup-restore"
+
+        add_plugin_if_missing() {
+          local PLUGIN_NAME="$1"
+          local PLUGIN_IMAGE="$2"
+          local EXPECTED_IMAGE_VERSION="${PLUGIN_IMAGE##*:}"
+
+          echo -e "\nChecking plugin: $PLUGIN_NAME"
+
+          EXISTING_IMAGE=$(oc get dpa "$DPA" -n "$NAMESPACE" -o json | jq -r \
+            --arg name "$PLUGIN_NAME" '.spec.configuration.velero.customPlugins[]? | select(.name == $name) | .image')
+          if [ -z "$EXPECTED_IMAGE_VERSION" ]; then
+            echo "version tag must be defined, current arg=$PLUGIN_IMAGE"
+            return 1
+          fi
+
+          EXISTING_IMAGE_INDEX=$(oc get dpa "$DPA" -n "$NAMESPACE" -o json | jq -r \
+            --arg name "$PLUGIN_NAME" '[.spec.configuration.velero.customPlugins[]? | .name] | index($name)')
+
+          INSTALLED_IMAGE_VERSION="${EXISTING_IMAGE##*:}"  # Gets everything after the last ":"
+          if [ -n "$EXISTING_IMAGE" ]; then
+            if [ "$INSTALLED_IMAGE_VERSION" = "$EXPECTED_IMAGE_VERSION" ]; then
+              echo "Plugin '$PLUGIN_NAME' already exists with image: $EXISTING_IMAGE and in correct version, aborting DPA update"
+            else
+              echo "Plugin '$PLUGIN_NAME' needs to be patched. Patching DPA customPlugins with image $PLUGIN_IMAGE ..."
+              oc patch dpa "$DPA" -n "$NAMESPACE" --type='json' \
+                -p='[{"op":"replace","path":"/spec/configuration/velero/customPlugins/'$EXISTING_IMAGE_INDEX'","value":{"name":"'"$PLUGIN_NAME"'","image":"'"$PLUGIN_IMAGE"'"}}]'
+
+              if [ $? -ne 0 ]; then
+                  echo "ERROR: oc patch command failed"
+                  return 1
+              fi
+            fi
+          else
+            echo "Plugin '$PLUGIN_NAME' not found. Adding DPA customPlugins with image $PLUGIN_IMAGE ..."
+            oc patch dpa "$DPA" -n "$NAMESPACE" --type='json' -p='[{"op":"add","path":"/spec/configuration/velero/customPlugins/-","value":{"name":"'"$PLUGIN_NAME"'","image":"'"$PLUGIN_IMAGE"'"}}]'
+            if [ $? -ne 0 ]; then
+                echo "ERROR: oc patch command failed"
+                return 1
+            fi
+          fi
+        }
+
+        add_plugin_if_missing "cpfs-oadp-plugin" "icr.io/cpopen/cpfs/cpfs-oadp-plugins:${CPFS_OADP_PLUGIN_VERSION}"
+        add_plugin_if_missing "db2u-velero-plugin" "icr.io/db2u/db2u-velero-plugin:${VERSION}"
+        add_plugin_if_missing "swhub-velero-plugin" "icr.io/cpopen/cpd/swhub-velero-plugin:${VERSION}"
+
+    Upgrade the cpdbr-tenant component for the instance.
+    The command that you run depends on whether the scheduling service is installed.
+    Tip: If the cloud object store for the IBM Fusion backup service uses a CA certificate, you can use the --backup-validation-cacert option to provide the base64 encoded certificate.
+    Environments with the scheduling service
+
+    cpd-cli oadp install \
+    --component=cpdbr-tenant \
+    --tenant-operator-namespace=${PROJECT_CPD_INST_OPERATORS} \
+    --cpd-scheduler-namespace=${PROJECT_SCHEDULING_SERVICE} \
+    --cpfs-image-version=latest \
+    --upgrade=true \
+    --log-level=debug \
+    --verbose
+
+    Environments without the scheduling service
+
+    cpd-cli oadp install \
+    --component=cpdbr-tenant \
+    --tenant-operator-namespace=${PROJECT_CPD_INST_OPERATORS} \
+    --cpfs-image-version=latest \
+    --upgrade=true \
+    --log-level=debug \
+    --verbose
+
+    If the scheduling service is installed on the environment, verify that the recipe was installed.
+        Print the contents of the ibmcpd-scheduler recipe:
+
+        oc get frcpe ibmcpd-scheduler \
+        -n ${PROJECT_SCHEDULING_SERVICE} \
+        -o yaml
+
+        Compare the output to the following YAML file:
+
+        apiVersion: spp-data-protection.isf.ibm.com/v1alpha1
+        kind: Recipe
+        metadata:
+          annotations:
+            dp.isf.ibm.com/restore-same-namespace-only: "true"
+          labels:
+            icpdsupport/addOnId: cpdbr
+            icpdsupport/app: br-service
+            icpdsupport/version: 5.3.1
+          name: ibmcpd-scheduler
+        spec:
+          appType: cpd-scheduler
+          groups:
+            - includedResourceTypes:
+                - secrets
+              labelSelector: "owner=helm"
+              name: cpd-scheduler-helm-secrets
+              type: resource
+            - includedResourceTypes:
+                - clusterrole
+                - clusterrolebinding
+                - role
+                - rolebinding
+                - serviceaccount
+                - deployment
+                - configmaps
+                - customresourcedefinitions.apiextensions.k8s.io
+                - scheduling.scheduler.spectrumcomputing.ibm.com
+                - secret
+              labelSelector: "icpdsupport/addOnId in (scheduling),icpdsupport/ignore-on-nd-backup notin (true)"
+              includeClusterResources: true
+              name: cpd-scheduler-resources
+              type: resource
+            - backupRef: cpd-scheduler-helm-secrets
+              includedResourceTypes:
+                - secrets
+              name: cpd-scheduler-scheduling-helm-secrets
+              type: resource
+            - backupRef: cpd-scheduler-resources
+              includeClusterResources: true
+              includedResourceTypes:
+                - clusterrole
+                - clusterrolebinding
+                - role
+                - rolebinding
+                - serviceaccount
+                - deployment
+                - configmaps
+                - customresourcedefinitions.apiextensions.k8s.io
+                - scheduling.scheduler.spectrumcomputing.ibm.com
+                - secret
+              name: cpd-scheduler-scheduling-resources
+              type: resource
+          workflows:
+            - name: backup
+              sequence:
+                - group: cpd-scheduler-resources
+                - group: cpd-scheduler-helm-secrets
+            - name: restore
+              sequence:
+                - group: cpd-scheduler-scheduling-resources
+                - group: cpd-scheduler-scheduling-helm-secrets
+
+        If the recipe is not installed or if the recipe on your cluster is different, run the following command to apply the recipe:
+
+        cat <<EOF | oc apply -n ${PROJECT_SCHEDULING_SERVICE} -f -
+        apiVersion: spp-data-protection.isf.ibm.com/v1alpha1
+        kind: Recipe
+        metadata:
+          annotations:
+            dp.isf.ibm.com/restore-same-namespace-only: "true"
+          labels:
+            icpdsupport/addOnId: cpdbr
+            icpdsupport/app: br-service
+            icpdsupport/version: 5.3.1
+          name: ibmcpd-scheduler
+        spec:
+          appType: cpd-scheduler
+          groups:
+            - includedResourceTypes:
+                - secrets
+              labelSelector: "owner=helm"
+              name: cpd-scheduler-helm-secrets
+              type: resource
+            - includedResourceTypes:
+                - clusterrole
+                - clusterrolebinding
+                - role
+                - rolebinding
+                - serviceaccount
+                - deployment
+                - configmaps
+                - customresourcedefinitions.apiextensions.k8s.io
+                - scheduling.scheduler.spectrumcomputing.ibm.com
+                - secret
+              labelSelector: "icpdsupport/addOnId in (scheduling),icpdsupport/ignore-on-nd-backup notin (true)"
+              includeClusterResources: true
+              name: cpd-scheduler-resources
+              type: resource
+            - backupRef: cpd-scheduler-helm-secrets
+              includedResourceTypes:
+                - secrets
+              name: cpd-scheduler-scheduling-helm-secrets
+              type: resource
+            - backupRef: cpd-scheduler-resources
+              includeClusterResources: true
+              includedResourceTypes:
+                - clusterrole
+                - clusterrolebinding
+                - role
+                - rolebinding
+                - serviceaccount
+                - deployment
+                - configmaps
+                - customresourcedefinitions.apiextensions.k8s.io
+                - scheduling.scheduler.spectrumcomputing.ibm.com
+                - secret
+              name: cpd-scheduler-scheduling-resources
+              type: resource
+          workflows:
+            - name: backup
+              sequence:
+                - group: cpd-scheduler-resources
+                - group: cpd-scheduler-helm-secrets
+            - name: restore
+              sequence:
+                - group: cpd-scheduler-scheduling-resources
+                - group: cpd-scheduler-scheduling-helm-secrets
+        EOF
+
+NetApp Trident Protect users:
+
+    Set the OADP_OPERATOR_NS environment variable to the project where the OADP operator is installed:
+
+    export OADP_OPERATOR_NS=<oadp-operator-project>
+
+    Upgrade the cpdbr-tenant component for the instance.
+    The command that you run depends on whether the scheduling service is installed.
+    Environments with the scheduling service
+
+    Environments without the scheduling service
+
+Portworx asynchronous disaster recovery users:
+
+    Set the OADP_OPERATOR_NS environment variable to the project where the OADP operator is installed:
+
+    export OADP_OPERATOR_NS=<oadp-operator-project>
+
+    Upgrade the cpdbr-tenant component for the instance.
+    The command that you run depends on whether the scheduling service is installed.
+    Environments with the scheduling service
+
+    Environments without the scheduling service
+
+What to do next
+
+Now that you've upgraded the cpdbr service, you're ready to complete Upgrading the IBM Software Hub configuration admission controller webhook (Upgrading from Version 5.1 to Version 5.3).
+
+If you don't use the configuration admission controller webhook, see Upgrading privileged monitors (Upgrading from Version 5.1 to Version 5.3).
+Parent topic:
+Upgrading an instance of IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+Previous topic:
+Upgrading IBM Software Hub (Upgrading from Version 5.1 to Version 5.3)
+While IBM values the use of inclusive language, terms that are outside of IBM's direct influence, for the sake of maintaining user understanding, are sometimes required. As other industry leaders join IBM in embracing the use of inclusive language, IBM will continue to update the documentation to reflect those changes.
+© Copyright IBM Corporation 2026
+
+    Contact IBM
+    Privacy
+    Terms of use
+    Accessibility
+
+    IBM Documentation Help
+
+    On this page
+    Before you begin
+    About this task
+    Procedure
+    What to do next
+
