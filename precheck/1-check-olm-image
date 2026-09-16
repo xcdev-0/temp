@@ -1,0 +1,10 @@
+podman container inspect olm-utils-play-v4 \
+--format 'Image={{.ImageName}}
+Digest={{.ImageDigest}}
+Status={{.State.Status}}'
+
+
+podman image inspect "$OLM_UTILS_IMAGE" \
+--format 'Local={{.Digest}}'
+
+  skopeo inspect --format '{{.Digest}}' "docker://${OLM_UTILS_IMAGE}"
