@@ -1,0 +1,29 @@
+# GPU 구독이 보는 CatalogSource 이름을 변수에 담기
+GPU_CS=$(oc get sub -A \
+  -o jsonpath='{range .items[?(@.spec.name=="gpu-operator-certified")]}{.spec.source}{"\n"}{end}' \
+  | head -1)
+echo "GPU 카탈로그 = ${GPU_CS}"
+
+# 그 카탈로그를 SOURCE 로 쓰는 구독 전부
+oc get sub -A --no-headers \
+  -o custom-columns=NS:.metadata.namespace,PKG:.spec.name,SOURCE:.spec.source \
+  | awk -v cs="${GPU_CS}" '$3==cs'
+- gpu-operator-certified 한 줄만 나오면 구독 쪽은 겹치지 않아요.
+- 다른 패키지가 같이 나오면, 그 구독도 같은 카탈로그에 의존하고 있는 거예요.
+
+2. 그 카탈로그에 GPU 말고 다른
+
+oc get packagemanifest -n openshift-marketplace --no-headers \
+  -o custom-columns=PACKAGE:.mettalogSource \
+  | awk -v cs="${GPU_CS}" '$2==cs'
+- GPU 한 줄만 나오면 덮어써도 없어지는 패키지가 없어요.
+- 여러 줄이 나오면 덮어쓸 때 나  요.
+
+3. 새로 미러할 주소가 기존 카탈로그 이미지 주소와 같은지
+
+oc get catalogsource "${GPU_CS}" -n openshift-marketplace \
+  -o jsonpath='{.spec.image}{"\n"}'
+이 주소를 새 이미지셋이 만들 주
+- targetCatalog가 없으면 새 주소는 <사설>/redhat/certified-operator-index:v4.18이에요.
+- targetCatalog가 있으면 새 주소는 <사설>/operators/gpu-upgrade:ocp4.18-to-26.3.3이에요.
+- 두 주소가 같으면 덮어쓰게 돼요해요.
