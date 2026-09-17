@@ -1,0 +1,64 @@
+ 
+1. olm-utils digest 불일치(9/8 설치 실패) 재현 실험
+
+  [배경]
+  - 9/8 랩 5.3.1 설치 중 olm-utils job 이 ImagePullBackOff.
+    job 이미지가 사설 레지스트리에 없는 digest 를 가리킴
+  [재현]
+  - 랩 배스천에서 현장과 같은 순서로 진행:
+    로컬 이미지 전부 삭제 → 반입 tar load → 공식 문서대로
+    OLM_UTILS_IMAGE 를 사설 주소로 두고 restart-container
+  - 같은 결과나옴
+    podman inspect olm-utils-play-v4 \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' \
+      | grep OLM_UTILS_IMAGE
+    결과가 tar load 때의 값(ffeb00cf)
+
+  [결과]
+  - 사설 pull 은 성공하는데 컨테이너에 기록되는 digest 는
+    tar load 때의 값(ffeb00cf). 사설 레지스트리의 값은
+    3a5e4be1 → 이 상태로 설치하면 9/8 과 같은 실패
+  - 즉 공식 문서 절차만으로는 같은 문제가 다시 생김
+
+  [원인 — 확인된 범위]
+  - 두 digest 는 같은 이미지(IMAGE ID 동일).
+    tar 로 load 하면 podman 이 manifest 를 새로 만들어
+    digest 가 레지스트리와 달라짐
+  - ID 가 같아 사설에서 받아도 새 이미지가 생기지 않고,
+    먼저 기록된 tar 쪽 digest 가 대표로 남음
+  - 사설에서 먼저 받고 tar 를 나중에 load 하면 정상
+    → load 와 pull 의 순서가 원인
+
+  [미확인]
+  - 공식 문서에 이 경우의 안내가 없는 이유
+  - 5.1.x 이하에서도 같은지?
+    (5.3.1·5.4.0 에서는 발생 확인 — 8/26, 9/8)
+
+  [해결]
+  - 사설 전환 시 로컬 olm-utils 이미지를 ID 로 삭제한 뒤
+    restart-container → 사설에서 새로 받아 digest 일치.
+    랩에서 확인
+  - 설치 직전에 컨테이너 env 의 digest 확인 1줄 추가
+
+    # 1) 사설 주소인지 확인
+    echo "$OLM_UTILS_IMAGE"
+    # 2) olm-utils 컨테이너 제거
+    podman rm -f olm-utils-play-v4
+    # 3) 5.3.1 이미지의 IMAGE ID 확인
+    podman images --digests | grep olm-utils-v4 | grep 5.3.1.amd64
+    # 4) 이름이 아니라 ID 로 삭제  
+    podman rmi -f <IMAGE_ID>
+    # 5) 사설에서 새로 pull + 컨테이너 재생성
+    cpd-cli manage restart-container
+    # 6) 설치 직전 확인 — env 의 digest
+    podman inspect olm-utils-play-v4 \
+      --format '{{range .Config.Env}}{{println .}}{{end}}' \
+      | grep OLM_UTILS_IMAGE
+    # 7) 이미지의 digest 목록 (사설 1줄이면 정상)
+    podman image inspect <IMAGE_ID> \
+      --format '{{.Digest}}{{"\n"}}{{.RepoDigests}}'
+
+    판정: 6) 의 digest 와 7) 의 digest 가 같고,
+          7) 의 RepoDigests 가 사설 주소 1줄이면 통과
+
+ 
