@@ -1,1 +1,3 @@
 https://www.ibm.com/docs/en/software-hub/5.1.x?topic=utility-offline-backup-restore-same-cluster
+
+oc get db2ucluster -A -ojsonpath='{.items[?(@.spec.environment.dbType=="db2oltp")].metadata.name}'
