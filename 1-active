@@ -1,5 +1,51 @@
 NS=ibm-cpd
 
+echo "===== 1. 현재 CronJob suspend 상태 ====="
+oc get cronjob -n $NS \
+  jobs-retention-check-cronjob \
+  zen-rsi-evictor-cron-job
+
+echo
+echo "===== 2. 현재 ACTIVE Job 상세 ====="
+oc get jobs -n $NS -o json | jq -r '
+.items[]
+| select((.status.active // 0) > 0)
+| [
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.kind + "/" + .name) | join(",")),
+    (.status.active // 0),
+    (.status.succeeded // 0),
+    (.status.failed // 0),
+    (.status.startTime // "-")
+  ]
+| @tsv
+'
+
+echo
+echo "===== 3. Terminating Pod ====="
+oc get pod -n $NS -o json | jq -r '
+.items[]
+| select(.metadata.deletionTimestamp != null)
+| [
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.kind + "/" + .name) | join(",")),
+    .metadata.deletionTimestamp,
+    (.status.phase // "-")
+  ]
+| @tsv
+'
+
+echo
+echo "===== 4. 비정상 Pod 전체 ====="
+oc get pod -n $NS | \
+egrep 'Terminating|Pending|Error|CrashLoopBackOff|ImagePullBackOff|CreateContainerError' || true
+
+echo
+echo "===== 5. OADP 확인 ====="
+oc get dpa -A
+oc get backupstoragelocations.velero.io -n oadp-operator
+oc get pods -n oadp-operatorNS=ibm-cpd
+
 echo "===== 1. zen-rsi suspend ====="
 
 oc patch cronjob zen-rsi-evictor-cron-job \
