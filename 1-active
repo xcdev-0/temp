@@ -1,0 +1,54 @@
+NS=ibm-cpd
+
+echo "===== 1. zen-rsi suspend ====="
+
+oc patch cronjob zen-rsi-evictor-cron-job \
+  -n $NS \
+  --type=merge \
+  -p '{"spec":{"suspend":true}}'
+
+
+echo
+echo "===== 2. 두 CronJob 상태 ====="
+
+oc get cronjob -n $NS \
+  jobs-retention-check-cronjob \
+  zen-rsi-evictor-cron-job
+
+
+echo
+echo "===== 3. 현재 ACTIVE Job ====="
+
+oc get jobs -n $NS -o json | jq -r '
+.items[]
+| select((.status.active // 0) > 0)
+| [
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.name) | join(",")),
+    (.status.active // 0),
+    (.status.startTime // "-")
+  ]
+| @tsv
+'
+
+
+echo
+echo "===== 4. 비정상 Pod ====="
+
+oc get pods -n $NS | \
+egrep 'CrashLoopBackOff|Error|Pending|Terminating|ImagePullBackOff|CreateContainerError' || true
+
+
+echo
+echo "===== 5. OADP ====="
+
+oc get dpa -A
+oc get backupstoragelocations.velero.io -n oadp-operator
+oc get pods -n oadp-operator
+
+
+echo
+echo "===== 6. 기존 Backup/Restore 진행 여부 ====="
+
+oc get backups.velero.io -n oadp-operator
+oc get restores.velero.io -n oadp-operator
