@@ -1,0 +1,58 @@
+# ==========================================
+# 1) jobs-retention-check 상태 확인
+# ==========================================
+
+NS=ibm-cpd
+J=jobs-retention-check-cronjob-29777830
+CJ=jobs-retention-check-cronjob
+
+echo "===== CronJob 상태 ====="
+oc get cronjob $CJ -n $NS \
+-o jsonpath='schedule={.spec.schedule}{"\n"}concurrencyPolicy={.spec.concurrencyPolicy}{"\n"}startingDeadlineSeconds={.spec.startingDeadlineSeconds}{"\n"}suspend={.spec.suspend}{"\n"}lastScheduleTime={.status.lastScheduleTime}{"\n\n"}'
+
+echo "===== Job 상태 ====="
+oc get job $J -n $NS -o wide
+
+echo "===== Job 상세 ====="
+oc describe job $J -n $NS
+
+echo "===== Job이 만든 Pod ====="
+oc get pod -n $NS \
+  -l job-name=$J \
+  -o wide
+
+echo "===== Pod 상세 ====="
+for P in $(oc get pod -n $NS -l job-name=$J -o name); do
+  oc describe -n $NS $P
+done
+
+echo "===== Job 로그 ====="
+oc logs job/$J -n $NS \
+  --all-containers=true \
+  --tail=200 2>&1
+
+echo "===== 최근 CronJob 관련 Job ====="
+oc get jobs -n $NS \
+  --sort-by=.metadata.creationTimestamp \
+  | grep jobs-retention-check | tail -30
+
+echo "===== 현재 ACTIVE Job 전체 ====="
+oc get jobs -n $NS -o json | jq -r '
+.items[]
+| select((.status.active // 0) > 0)
+| [
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.name) | join(",")),
+    (.status.active // 0),
+    (.status.succeeded // 0),
+    (.status.failed // 0),
+    (.status.startTime // "-")
+  ]
+| @tsv
+'
+
+echo "===== 관련 Warning Event ====="
+oc get events -n $NS \
+  --sort-by=.metadata.creationTimestamp \
+  | grep -E 'jobs-retention|TooManyMissedTimes|Warning' \
+  | tail -50
