@@ -1,0 +1,10 @@
+oc get crd dataprotectionapplications.oadp.openshift.io
+oc get dpa -A
+
+oc get jobs -n ibm-cpd \
+  -o custom-columns='NAME:.metadata.name,ACTIVE:.status.active,SUCCEEDED:.status.succeeded,FAILED:.status.failed,AGE:.metadata.creationTimestamp' \
+  | grep -E 'retention|env-spec|zen-rsi|metastore'
+
+oc get pods -n ibm-cpd | grep '^catalog-api' 
+
+oc get deployment -n ibm-cpd | grep catalog-api
