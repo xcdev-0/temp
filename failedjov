@@ -1,0 +1,16 @@
+oc get jobs -n ibm-cpd -o json |
+jq -r '
+.items[]
+| select(
+    [.status.conditions[]?
+     | select(.type=="Failed" and .status=="True")
+    ] | length > 0
+  )
+| [
+    .metadata.creationTimestamp,
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.name) | join(",")),
+    (.status.failed // 0)
+  ]
+| @tsv
+' | sort -r | head -20
