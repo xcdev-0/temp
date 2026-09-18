@@ -47,7 +47,7 @@
     # 3) 5.3.1 이미지의 IMAGE ID 확인
     podman images --digests | grep olm-utils-v4 | grep 5.3.1.amd64
     # 4) 이름이 아니라 ID 로 삭제  
-    podman rmi -f <IMAGE_ID>
+    podman rmi -f $IMAGE_ID
     # 5) 사설에서 새로 pull + 컨테이너 재생성
     cpd-cli manage restart-container
     # 6) 설치 직전 확인 — env 의 digest
@@ -55,7 +55,7 @@
       --format '{{range .Config.Env}}{{println .}}{{end}}' \
       | grep OLM_UTILS_IMAGE
     # 7) 이미지의 digest 목록 (사설 1줄이면 정상)
-    podman image inspect <IMAGE_ID> \
+    podman image inspect $IMAGE_ID\
       --format '{{.Digest}}{{"\n"}}{{.RepoDigests}}'
 
     판정: 6) 의 digest 와 7) 의 digest 가 같고,
