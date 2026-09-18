@@ -1,0 +1,64 @@
+NS=ibm-cpd
+CJ=jobs-retention-check-cronjob
+J=jobs-retention-check-cronjob-29777830
+P=$(oc get pod -n $NS -l job-name=$J -o jsonpath='{.items[0].metadata.name}')
+
+echo "===== 1. CronJob suspend ====="
+oc patch cronjob $CJ -n $NS \
+  --type=merge \
+  -p '{"spec":{"suspend":true}}'
+
+echo
+echo "===== 2. CronJob 상태 ====="
+oc get cronjob $CJ -n $NS
+
+echo
+echo "===== 3. Job 상태 ====="
+oc get job $J -n $NS -o wide
+
+echo
+echo "===== 4. Pod 상태 ====="
+oc get pod $P -n $NS -o wide
+
+echo
+echo "===== 5. 최근 로그 300줄 ====="
+oc logs $P -n $NS \
+  --all-containers=true \
+  --timestamps \
+  --tail=300
+
+echo
+echo "===== 6. retention / postgres 관련 로그 ====="
+oc logs $P -n $NS \
+  --all-containers=true \
+  --timestamps 2>&1 \
+  | grep -Ei 'retention|postgres|error|fail|timeout|exception|connect|secret' \
+  | tail -100
+
+echo
+echo "===== 7. 컨테이너 프로세스 ====="
+oc exec -n $NS $P -- sh -c \
+  'ps -ef 2>/dev/null || ps aux 2>/dev/null || true'
+
+echo
+echo "===== 8. POSTGRES_URI 환경변수 존재 여부만 확인 (값 출력 안 함) ====="
+oc exec -n $NS $P -- sh -c '
+if [ -n "${POSTGRES_URI:-}" ]; then
+  echo "POSTGRES_URI=SET"
+else
+  echo "POSTGRES_URI=NOT_SET"
+fi
+'
+
+echo
+echo "===== 9. Secret 존재 및 key 이름만 확인 ====="
+oc get secret ccs-jobs-postgres-edb-secret -n $NS \
+  -o json 2>/dev/null \
+  | jq -r '"secret exists", (.data | keys[])' \
+  || echo "ccs-jobs-postgres-edb-secret NOT FOUND"
+
+echo
+echo "===== 10. Pod Event ====="
+oc get events -n $NS \
+  --field-selector involvedObject.name=$P \
+  --sort-by=.metadata.creationTimestamp
