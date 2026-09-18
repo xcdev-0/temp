@@ -1,0 +1,18 @@
+NS=ibm-cpd
+CJ=jobs-retention-check-cronjob
+J=jobs-retention-check-cronjob-29777830
+
+mkdir -p retention-check-backup
+
+oc get cronjob $CJ -n $NS -o yaml \
+  > retention-check-backup/${CJ}.yaml
+
+oc get job $J -n $NS -o yaml \
+  > retention-check-backup/${J}.yaml
+
+oc logs job/$J -n $NS \
+  --all-containers=true --timestamps \
+  > retention-check-backup/${J}.log 2>&1
+
+oc get pod -n $NS -l job-name=$J -o yaml \
+  > retention-check-backup/${J}-pod.yaml
