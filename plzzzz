@@ -1,0 +1,81 @@
+NS=ibm-cpd
+
+echo "=========================================="
+echo "1. 현재 ACTIVE Job 전체"
+echo "=========================================="
+
+oc get jobs -n $NS -o json | jq -r '
+.items[]
+| select((.status.active // 0) > 0)
+| [
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.name) | join(",")),
+    (.status.active // 0),
+    (.status.succeeded // 0),
+    (.status.failed // 0),
+    (.status.startTime // "-")
+  ]
+| @tsv
+'
+
+echo
+echo "=========================================="
+echo "2. 우리가 보고 있는 주요 CronJob"
+echo "=========================================="
+
+oc get cronjob -n $NS \
+  jobs-retention-check-cronjob \
+  zen-rsi-evictor-cron-job \
+  zen-metastore-backup-cron-job \
+  zen-metastore-weekly-backup-cron-job \
+  zen-metastore-monthly-backup-cron-job \
+  env-spec-sync-job \
+  2>/dev/null
+
+echo
+echo "=========================================="
+echo "3. 위 CronJob들이 만든 최근 Job"
+echo "=========================================="
+
+oc get jobs -n $NS \
+  --sort-by=.metadata.creationTimestamp |
+grep -E 'jobs-retention|zen-rsi|zen-metastore|env-spec-sync' |
+tail -40
+
+echo
+echo "=========================================="
+echo "4. 최근 실패 Job 20개"
+echo "=========================================="
+
+oc get jobs -n $NS -o json | jq -r '
+.items[]
+| select(
+    [.status.conditions[]?
+     | select(.type=="Failed" and .status=="True")
+    ] | length > 0
+  )
+| [
+    .metadata.creationTimestamp,
+    .metadata.name,
+    ((.metadata.ownerReferences // []) | map(.name) | join(",")),
+    (.status.failed // 0)
+  ]
+| @tsv
+' | sort -r | head -20
+
+echo
+echo "=========================================="
+echo "5. 현재 suspend=true인 CronJob"
+echo "=========================================="
+
+oc get cronjob -n $NS -o json | jq -r '
+.items[]
+| select(.spec.suspend == true)
+| [
+    .metadata.name,
+    .spec.schedule,
+    ((.status.active // []) | length),
+    (.status.lastScheduleTime // "-")
+  ]
+| @tsv
+'
